@@ -4,3 +4,5 @@ __pycache__/
 PLAN/
 teste/
 backup/
+sync.py
+download.log
