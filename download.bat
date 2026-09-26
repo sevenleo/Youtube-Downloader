@@ -60,7 +60,7 @@ yt-dlp --force-ipv4 --dump-single-json --skip-download --no-warnings "!URL!" > "
 if errorlevel 1 goto ERROR_TITLE
 if not exist "%VIDEO_DATA_FILE%" goto ERROR_TITLE
 
-powershell.exe -NoProfile -Command "$d=Get-Content -Raw -LiteralPath $env:VIDEO_DATA_FILE | ConvertFrom-Json; if([string]::IsNullOrWhiteSpace([string]$d.title)){exit 1}; [IO.File]::WriteAllText($env:TITLE_FILE,[string]$d.title,(New-Object Text.UTF8Encoding($false))); $h=@($d.formats | Where-Object { $_.vcodec -like 'avc1*' -and $_.height -gt 0 } | ForEach-Object { [int]$_.height } | Sort-Object -Unique); if(-not $h){exit 2}; [IO.File]::WriteAllLines($env:RESOLUTION_FILE,[string[]]$h,(New-Object Text.UTF8Encoding($false)))" >> "!LOG!" 2>&1
+powershell.exe -NoProfile -Command "$d=Get-Content -Raw -LiteralPath $env:VIDEO_DATA_FILE | ConvertFrom-Json; if([string]::IsNullOrWhiteSpace([string]$d.title)){exit 1}; [IO.File]::WriteAllText($env:TITLE_FILE,[string]$d.title,(New-Object Text.UTF8Encoding($false))); $h=@($d.formats | Where-Object { $_.vcodec -like 'avc1*' -and [int]$_.height -gt 0 -and [int]$_.width -gt 0 } | Group-Object { [int]$_.height } | Sort-Object { [int]$_.Name } | ForEach-Object { $w=($_.Group | ForEach-Object { [int]$_.width } | Measure-Object -Maximum).Maximum; ([string][int]$_.Name)+' '+([string]$w) }); if(-not $h){exit 2}; [IO.File]::WriteAllLines($env:RESOLUTION_FILE,[string[]]$h,(New-Object Text.UTF8Encoding($false)))" >> "!LOG!" 2>&1
 
 if errorlevel 2 goto ERROR_FORMATS
 if errorlevel 1 goto ERROR_TITLE
@@ -95,12 +95,13 @@ if not defined SAFE_TITLE goto ERROR_SAFE_TITLE
 echo Nome seguro: !SAFE_TITLE!
 echo SAFE_TITLE: !SAFE_TITLE! >> "!LOG!"
 
+:ASK_RESOLUTION
 echo.
 echo Resolucoes H.264 disponiveis:
 set "RESOLUTION_INDEX=0"
-for /f "usebackq delims=" %%R in ("%RESOLUTION_FILE%") do (
+for /f "usebackq tokens=1,2" %%A in ("%RESOLUTION_FILE%") do (
     set /a RESOLUTION_INDEX+=1
-    echo !RESOLUTION_INDEX! - %%Rp
+    echo !RESOLUTION_INDEX! - %%Ap - %%Bx%%A
 )
 
 set "RESOLUTION_OPTION="
@@ -108,16 +109,22 @@ set /p "RESOLUTION_OPTION=Escolha o numero da resolucao [1-!RESOLUTION_INDEX!]: 
 
 set "RESOLUTION="
 set "RESOLUTION_INDEX=0"
-for /f "usebackq delims=" %%R in ("%RESOLUTION_FILE%") do (
+for /f "usebackq tokens=1,2" %%A in ("%RESOLUTION_FILE%") do (
     set /a RESOLUTION_INDEX+=1
-    if "!RESOLUTION_INDEX!"=="!RESOLUTION_OPTION!" set "RESOLUTION=%%R"
+    if "!RESOLUTION_INDEX!"=="!RESOLUTION_OPTION!" set "RESOLUTION=%%A"
+)
+
+if not defined RESOLUTION (
+    echo.
+    echo Opcao invalida. Escolha um numero da lista.
+    echo OPCAO DE RESOLUCAO INVALIDA: !RESOLUTION_OPTION! >> "!LOG!"
+    goto ASK_RESOLUTION
 )
 del "%RESOLUTION_FILE%" >nul 2>&1
 
-if not defined RESOLUTION goto ERROR_RESOLUTION
-
 echo RESOLUCAO: !RESOLUTION!p >> "!LOG!"
 
+:ASK_FORMAT
 echo.
 echo Escolha o formato de saida:
 echo.
@@ -128,9 +135,12 @@ echo.
 set "FORMAT_OPTION="
 set /p "FORMAT_OPTION=Opcao [1-2]: "
 
-if "%FORMAT_OPTION%"=="1" goto FORMAT_MKV
-if "%FORMAT_OPTION%"=="2" goto FORMAT_MP4
-goto ERROR_FORMAT
+if "!FORMAT_OPTION!"=="1" goto FORMAT_MKV
+if "!FORMAT_OPTION!"=="2" goto FORMAT_MP4
+echo.
+echo Opcao invalida. Digite 1 ou 2.
+echo OPCAO DE FORMATO INVALIDA: !FORMAT_OPTION! >> "!LOG!"
+goto ASK_FORMAT
 
 :FORMAT_MKV
 set "FORMAT=mkv"
@@ -142,8 +152,9 @@ goto FORMAT_DONE
 
 :FORMAT_DONE
 
-echo FORMATO: %FORMAT% >> "!LOG!"
+echo FORMATO: !FORMAT! >> "!LOG!"
 
+:ASK_CONTENT
 echo.
 echo Escolha o conteudo:
 echo.
@@ -154,9 +165,12 @@ echo.
 set "CONTENT_OPTION="
 set /p "CONTENT_OPTION=Opcao [1-2]: "
 
-if "%CONTENT_OPTION%"=="1" goto MODE_FULL
-if "%CONTENT_OPTION%"=="2" goto MODE_CLIP
-goto ERROR_MODE
+if "!CONTENT_OPTION!"=="1" goto MODE_FULL
+if "!CONTENT_OPTION!"=="2" goto MODE_CLIP
+echo.
+echo Opcao invalida. Digite 1 ou 2.
+echo OPCAO DE CONTEUDO INVALIDA: !CONTENT_OPTION! >> "!LOG!"
+goto ASK_CONTENT
 
 :MODE_FULL
 set "MODE=full"
@@ -198,7 +212,7 @@ echo BAIXANDO VIDEO COMPLETO
 echo ==================================================
 echo.
 
-yt-dlp --force-ipv4 --retries 20 --fragment-retries 20 --retry-sleep 2 -f "bv*[height=!RESOLUTION!][vcodec^=avc1]+ba[acodec=opus]" --merge-output-format mkv -o "%TEMP_DIR%\source.%%(ext)s" "!URL!" >> "!LOG!" 2>&1
+yt-dlp --force-ipv4 --retries 20 --fragment-retries 20 --retry-sleep 2 --print "FORMATO_RESOLVIDO: %%(format_id)s" --no-simulate --verbose -f "bv*[height=!RESOLUTION!][vcodec^^=avc1]+ba[acodec=opus]/bv*[height=!RESOLUTION!]+ba/b[height=!RESOLUTION!]/bv*[height<=!RESOLUTION!]+ba/best[height<=!RESOLUTION!]" --merge-output-format mkv --remux-video mkv -o "%TEMP_DIR%\source.%%(ext)s" "!URL!" >> "!LOG!" 2>&1
 
 if errorlevel 1 goto ERROR_DOWNLOAD
 
@@ -208,7 +222,7 @@ echo.
 echo Download concluido com sucesso.
 echo DOWNLOAD CONCLUIDO >> "!LOG!"
 
-if "%MODE%"=="full" goto PREPARE_FULL
+if "!MODE!"=="full" goto PREPARE_FULL
 
 set "START_SAFE=%START::=-%"
 set "END_SAFE=%END::=-%"
@@ -239,8 +253,8 @@ goto PROCESS_OUTPUT
 
 :PROCESS_OUTPUT
 
-if "%FORMAT%"=="mkv" goto OUTPUT_MKV
-if "%FORMAT%"=="mp4" goto OUTPUT_MP4
+if "!FORMAT!"=="mkv" goto OUTPUT_MKV
+if "!FORMAT!"=="mp4" goto OUTPUT_MP4
 goto ERROR_FORMAT
 
 :OUTPUT_MKV
