@@ -5,6 +5,8 @@ title Downloader - yt-dlp + FFmpeg
 
 cd /d "%~dp0"
 
+set "PATH=%~dp0bin;%PATH%"
+
 set "DESTINATION_FILE=%TEMP%\yt_destination_%RANDOM%%RANDOM%.txt"
 
 powershell.exe -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='Selecione a pasta de destino'; $d.ShowNewFolderButton=$true; if($d.ShowDialog() -ne [Windows.Forms.DialogResult]::OK){exit 1}; [IO.File]::WriteAllText($env:DESTINATION_FILE,$d.SelectedPath,(New-Object Text.UTF8Encoding($false)))" >nul 2>&1
@@ -344,7 +346,7 @@ exit /b 1
 
 :ERROR_YTDLP
 echo.
-echo ERRO: yt-dlp nao foi encontrado no PATH.
+echo ERRO: yt-dlp nao foi encontrado na pasta bin nem no PATH.
 echo Consulte o log: !LOG!
 echo ERRO: yt-dlp nao encontrado. >> "!LOG!"
 pause
@@ -352,7 +354,7 @@ exit /b 1
 
 :ERROR_FFMPEG
 echo.
-echo ERRO: ffmpeg nao foi encontrado no PATH.
+echo ERRO: ffmpeg nao foi encontrado na pasta bin nem no PATH.
 echo Consulte o log: !LOG!
 echo ERRO: ffmpeg nao encontrado. >> "!LOG!"
 pause

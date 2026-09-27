@@ -20,10 +20,12 @@ O processo foi desenvolvido para priorizar **confiabilidade do download e sincro
 
 ## Requisitos
 
-O Windows deve ter os seguintes programas disponíveis no `PATH` ou na mesma pasta de `download.bat`:
+Os executáveis ficam na pasta `bin/`, que o `download.bat` adiciona automaticamente ao início do `PATH`, com prioridade sobre instalações do sistema:
 
-* `yt-dlp`
-* `ffmpeg`
+* `bin\yt-dlp.exe`
+* `bin\ffmpeg.exe` (o pacote também inclui `ffplay.exe` e `ffprobe.exe`)
+
+Versões instaladas no sistema só são usadas como alternativa, quando presentes no `PATH`.
 
 Para verificar o `yt-dlp`:
 
@@ -56,13 +58,50 @@ A estrutura recomendada é:
 Downloader/
 │
 ├── download.bat
-├── yt-dlp.exe
-├── ffmpeg.exe
-└── docs/
-    └── README.md
+├── update.bat
+├── bin/
+│   ├── yt-dlp.exe
+│   ├── ffmpeg.exe
+│   ├── ffplay.exe
+│   └── ffprobe.exe
+└── doc/
+    ├── README.md
+    └── CHANGELOG.md
 ```
 
 O arquivo `download.log` é criado automaticamente na pasta de destino selecionada e não precisa existir previamente.
+
+---
+
+## Atualizar os binários
+
+Execute:
+
+```text
+update.bat
+```
+
+Antes de baixar qualquer coisa, o script compara as versões instaladas em `bin/` com as releases mais recentes das fontes oficiais e mostra na tela, para cada binário, a versão instalada, a mais recente e o status (atualizado ou com atualização disponível):
+
+* **yt-dlp** — `github.com/yt-dlp/yt-dlp` (alternativa: repositório oficial de nightly builds)
+* **FFmpeg** — `github.com/BtbN/FFmpeg-Builds` (alternativa: `gyan.dev`, ambos recomendados em ffmpeg.org)
+
+Depois da comparação, um menu permite escolher o que atualizar:
+
+```text
+1 - Apenas yt-dlp
+2 - Apenas FFmpeg
+3 - Ambos
+0 - Sair sem atualizar
+```
+
+Também é possível pular o menu informando a opção diretamente na linha de comando, útil para automação:
+
+```text
+update.bat 3
+```
+
+As opções `0`, `1`, `2` e `3` têm o mesmo significado do menu. O script requer `curl` (já incluído no Windows 10/11) e PowerShell.
 
 ---
 
@@ -453,16 +492,16 @@ YouTube
 Verifique:
 
 ```text
-yt-dlp --version
+bin\yt-dlp.exe --version
 ```
 
 e:
 
 ```text
-ffmpeg -version
+bin\ffmpeg.exe -version
 ```
 
-Caso algum comando não seja reconhecido, o programa correspondente não está disponível no `PATH`.
+Caso os arquivos não existam ou algum comando não seja reconhecido, execute `update.bat` para baixar os binários mais recentes na pasta `bin/`. O `download.bat` também consegue usar executáveis presentes no `PATH` do sistema.
 
 ---
 
@@ -482,7 +521,7 @@ Exemplo:
 C:\Program Files\...\ffmpeg.exe
 ```
 
-Nesse caso, o primeiro resultado normalmente é o executável utilizado pelo script.
+O `download.bat` prioriza sempre os executáveis da pasta `bin/`; instalações do sistema só são consideradas se a pasta estiver ausente.
 
 Também é possível verificar:
 
