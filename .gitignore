@@ -6,3 +6,5 @@ teste/
 backup/
 sync.py
 download.log
+bin/
+*.exe
