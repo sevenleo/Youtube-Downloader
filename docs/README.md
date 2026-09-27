@@ -25,6 +25,15 @@ Os executáveis ficam na pasta `bin/`, que o `download.bat` adiciona automaticam
 * `bin\yt-dlp.exe`
 * `bin\ffmpeg.exe` (o pacote também inclui `ffplay.exe` e `ffprobe.exe`)
 
+### Onde baixar os binários
+
+Caso queira baixar os binários manualmente:
+
+* **yt-dlp**: [GitHub Releases (Oficial)](https://github.com/yt-dlp/yt-dlp/releases/latest) — baixe o executável `yt-dlp.exe`.
+* **FFmpeg**: [BtbN FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) ou [Gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (ambos recomendados em ffmpeg.org) — baixe a versão para Windows e extraia `ffmpeg.exe`, `ffprobe.exe` e `ffplay.exe` para a pasta `bin/`.
+
+Você também pode utilizar o `update.bat`, que compara versões e baixa as atualizações automaticamente para a pasta `bin/`.
+
 Versões instaladas no sistema só são usadas como alternativa, quando presentes no `PATH`.
 
 Para verificar o `yt-dlp`:
