@@ -284,14 +284,6 @@ echo.
 pause
 exit /b 1
 
-:END_NO_UPDATE
-rmdir /s /q "%TEMP_DIR%" >nul 2>&1
-echo.
-echo Nenhuma alteracao foi feita.
-echo.
-pause
-exit /b 0
-
 :ERROR_CURL
 echo.
 echo ERRO: curl nao foi encontrado no sistema.
