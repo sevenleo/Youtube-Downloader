@@ -14,7 +14,6 @@ pub enum ProcStream {
 /// A line of process output (decoded with UTF-8 lossy).
 #[derive(Clone, Debug)]
 pub struct ProcLine {
-    pub stream: ProcStream,
     pub text: String,
 }
 
@@ -22,7 +21,7 @@ pub struct ProcLine {
 /// is executed with `--newline`) and sends each decoded line.
 fn spawn_reader(
     pipe: impl std::io::Read + Send + 'static,
-    stream: ProcStream,
+    _stream: ProcStream,
     tx: std::sync::mpsc::Sender<ProcLine>,
 ) -> std::thread::JoinHandle<()> {
     std::thread::spawn(move || {
@@ -47,7 +46,7 @@ fn spawn_reader(
                 buf.pop();
             }
             let text = String::from_utf8_lossy(&buf).into_owned();
-            if tx.send(ProcLine { stream, text }).is_err() {
+            if tx.send(ProcLine { text }).is_err() {
                 break; // receiver was dropped
             }
         }

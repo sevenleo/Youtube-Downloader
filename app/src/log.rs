@@ -62,8 +62,4 @@ impl DownloadLog {
         f.flush()?;
         Ok(())
     }
-
-    pub fn path(&self) -> &Path {
-        &self.path
-    }
 }

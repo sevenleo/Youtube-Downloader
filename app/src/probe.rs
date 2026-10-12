@@ -26,10 +26,6 @@ pub struct VideoInfo {
 }
 
 impl VideoInfo {
-    /// Safe title for filenames (invalid Windows characters replaced with `_`).
-    pub fn safe_title(&self) -> String {
-        crate::download::sanitize_filename(&self.title)
-    }
 }
 
 /// Positive integer parsed from JSON (yt-dlp emits ints; accepts float/string for robustness,

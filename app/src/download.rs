@@ -1,7 +1,7 @@
 //! Download workflow equivalent to download.bat. Parity with download.bat.
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::mpsc::Sender;
 
@@ -354,11 +354,6 @@ pub fn final_file_name(params: &DownloadParams) -> String {
             format!("{safe} - clip {s}-{e}.{ext}")
         }
     }
-}
-
-/// Log path for the output directory.
-pub fn log_path(output_dir: &Path) -> PathBuf {
-    output_dir.join("download.log")
 }
 
 #[cfg(test)]
