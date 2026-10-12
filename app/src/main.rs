@@ -16,6 +16,7 @@ mod e2e_test;
 
 slint::include_modules!();
 
+use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{
@@ -200,6 +201,26 @@ fn apply_event(
             app.set_ffmpeg_installed(status_text(&ffmpeg.installed));
             app.set_ffmpeg_latest(status_text(&ffmpeg.latest));
             app.set_ffmpeg_badge(badge_to_int(ffmpeg.badge));
+            // Feedback da verificação manual
+            app.set_upd_busy(false);
+            let ytdlp_ok = ytdlp.badge == BadgeState::UpToDate;
+            let ffmpeg_ok = ffmpeg.badge == BadgeState::UpToDate;
+            let ytdlp_unknown = ytdlp.badge == BadgeState::Unknown;
+            let ffmpeg_unknown = ffmpeg.badge == BadgeState::Unknown;
+            if ytdlp_unknown && ffmpeg_unknown {
+                app.set_upd_msg("Não foi possível verificar (sem internet ou erro)".into());
+            } else if ytdlp_ok && ffmpeg_ok {
+                app.set_upd_msg("Atualizados".into());
+            } else {
+                let mut parts = Vec::new();
+                if ytdlp.badge == BadgeState::UpdateAvailable || ytdlp.badge == BadgeState::NotInstalled {
+                    parts.push("yt-dlp: desatualizado");
+                }
+                if ffmpeg.badge == BadgeState::UpdateAvailable || ffmpeg.badge == BadgeState::NotInstalled {
+                    parts.push("FFmpeg: desatualizado");
+                }
+                app.set_upd_msg(parts.join(", ").into());
+            }
         }
         UiEvent::UpdateProgress {
             target,
@@ -490,10 +511,14 @@ fn main() -> anyhow::Result<()> {
         let weak = app.as_weak();
         app.on_check_updates(move || {
             if let Some(ui) = weak.upgrade() {
-                ui.set_upd_msg("Verificando versões…".into());
+                ui.set_upd_busy(true);
+                ui.set_upd_msg("Verificando...".into());
+                ui.set_upd_summary("".into());
             }
             let txw = tx.clone();
-            std::thread::spawn(move || check_updates_and_emit(&txw));
+            std::thread::spawn(move || {
+                check_updates_and_emit(&txw);
+            });
         });
     }
 
@@ -532,6 +557,41 @@ fn main() -> anyhow::Result<()> {
                 // Re-check de status apos o update.
                 check_updates_and_emit(&txw);
             });
+        });
+    }
+
+    // ---- on_confirm_delete ----
+    {
+        let weak = app.as_weak();
+        app.on_confirm_delete(move || {
+            if let Some(ui) = weak.upgrade() {
+                ui.set_delete_confirm(true);
+            }
+        });
+    }
+
+    // ---- on_delete_binaries ----
+    {
+        let tx = tx.clone();
+        let weak = app.as_weak();
+        app.on_delete_binaries(move || {
+            if let Some(ui) = weak.upgrade() {
+                match tools::ensure_bin_dir() {
+                    Ok(bin_dir) => {
+                        let _ = fs::remove_dir_all(&bin_dir);
+                        let _ = fs::create_dir_all(&bin_dir);
+                        ui.set_delete_confirm(false);
+                        ui.set_upd_msg("Binários excluídos. Verificando versões...".into());
+                        ui.set_upd_summary("".into());
+                        let txw = tx.clone();
+                        std::thread::spawn(move || check_updates_and_emit(&txw));
+                    }
+                    Err(e) => {
+                        ui.set_upd_msg(format!("Erro ao acessar pasta bin: {e}").into());
+                        ui.set_delete_confirm(false);
+                    }
+                }
+            }
         });
     }
 

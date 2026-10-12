@@ -1,6 +1,16 @@
 # Changelog
 
-# Changelog
+## [0.5.0] - 2026-10-12
+-c Update screen improvements
+
+- Update buttons now disabled when both binaries are already up-to-date
+- New labels: "Atualizar yt-dlp", "Atualizar FFmpeg", "Atualizar tudo"
+- New "Excluir binários" button (red) with two-step confirmation to clear `bin/`
+- Buttons organized in vertical column (one per line, full width)
+- "Verificar atualizações" button shows "Verificando..." during check, then "Atualizados" (green) or lists outdated binaries
+- Feedback text with dynamic colors: blue during check, green on success, red on error
+- Buttons automatically disabled when both binaries are up-to-date (badge==0)
+- Delete binaries button with two-step confirmation, auto re-checks versions after deletion
 
 ## [0.4.0] - 2026-10-12
 -c GUI polish: fix layout issues, improve UX

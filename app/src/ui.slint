@@ -19,6 +19,40 @@ component Card inherits Rectangle {
     }
 }
 
+// Botao de alerta (vermelho) para acoes destrutivas.
+component AlertButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+
+    callback clicked;
+
+    min-width: 96px;
+    min-height: 26px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: 6px;
+    background: !root.enabled ? #5a2a2a : touch.pressed ? #cc4444 : touch.has-hover ? #ff6b61 : #e05555;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.enabled ? white : #8a8a95;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
 // Botao primario com o acento #7C5CFF (o Button primary do fluent usa o azul padrao).
 component AccentButton inherits Rectangle {
     in property <string> text;
@@ -149,6 +183,7 @@ export component AppWindow inherits Window {
     in property <float> upd_percent: 0;     // 0..100
     in property <string> upd_msg: "";
     in property <string> upd_summary: "";
+    in-out property <bool> delete_confirm: false;
 
     // ---- Callbacks (UI -> Rust) ----
     callback analyze();
@@ -160,6 +195,8 @@ export component AppWindow inherits Window {
     callback view_log();      // toggle do painel de log in-app
     callback check_updates();
     callback run_update(int); // bitmask: 1 yt-dlp, 2 ffmpeg, 3 ambos
+    callback confirm_delete();
+    callback delete_binaries();
 
     // Erro de validacao some sozinho ao corrigir as opcoes.
     changed output_dir => { root.dl_error = ""; }
@@ -543,28 +580,54 @@ export component AppWindow inherits Window {
 
             // --- Acoes de update ---
             Card {
-                HorizontalLayout {
+                VerticalLayout {
                     spacing: 8px;
-                    alignment: center;
                     Button {
-                        text: "Verificar";
-                        enabled: !root.upd_busy;
-                        clicked => { root.check_updates(); }
-                    }
-                    Button {
-                        text: "yt-dlp";
-                        enabled: !root.upd_busy;
+                        text: "Atualizar yt-dlp";
+                        width: 100%;
+                        height: 36px;
+                        enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(1); }
                     }
                     Button {
-                        text: "FFmpeg";
-                        enabled: !root.upd_busy;
+                        text: "Atualizar FFmpeg";
+                        width: 100%;
+                        height: 36px;
+                        enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(2); }
                     }
                     AccentButton {
-                        text: "Ambos";
-                        enabled: !root.upd_busy;
+                        text: "Atualizar tudo";
+                        width: 100%;
+                        height: 36px;
+                        enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(3); }
+                    }
+                    AlertButton {
+                        text: "Excluir binários";
+                        width: 100%;
+                        height: 36px;
+                        enabled: !root.upd_busy && (root.ytdlp_badge != 3 || root.ffmpeg_badge != 3);
+                        clicked => { root.confirm_delete(); }
+                    }
+                    Button {
+                        text: root.upd_busy ? "Verificando..." : "Verificar atualizações";
+                        width: 100%;
+                        height: 36px;
+                        enabled: !root.upd_busy;
+                        clicked => { root.check_updates(); }
+                    }
+                    if root.upd_msg != "": Text {
+                        text: root.upd_msg;
+                        color: root.upd_busy ? #7c5cff : #7fd08a;
+                        font-size: 12px;
+                        horizontal-alignment: center;
+                    }
+                    if root.delete_confirm: HorizontalLayout {
+                        spacing: 8px;
+                        Text { text: "Confirmar exclusão dos binários?"; color: #ff6b61; }
+                        Button { text: "Confirmar"; clicked => { root.delete_binaries(); } }
+                        Button { text: "Cancelar"; clicked => { root.delete_confirm = false; } }
                     }
                 }
             }
@@ -580,13 +643,6 @@ export component AppWindow inherits Window {
                 }
                 ProgressIndicator {
                     progress: root.upd_percent / 100;
-                }
-                Text {
-                    text: root.upd_msg;
-                    font-size: 12px;
-                    color: #9aa0b4;
-                    wrap: word-wrap;
-                    visible: root.upd_msg != "";
                 }
                 Text {
                     text: root.upd_summary;

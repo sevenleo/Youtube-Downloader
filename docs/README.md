@@ -96,14 +96,6 @@ O `YoutubeDownloader.exe` é um aplicativo desktop (Rust + Slint) que faz exatam
 YoutubeDownloader.exe
 ```
 
-## Interface gráfica (YoutubeDownloader.exe)
-
-O `YoutubeDownloader.exe` é um aplicativo desktop (Rust + Slint) que faz exatamente a mesma coisa que os dois scripts, com interface visual em tema escuro. Não requer instalação nem Python: basta executá-lo ao lado da pasta `bin/`.
-
-```text
-YoutubeDownloader.exe
-```
-
 ### Tela Download (equivale ao download.bat)
 
 * Campo de URL + botão **Analisar**: mostra título, duração, miniatura e as resoluções H.264 reais do vídeo
@@ -115,10 +107,13 @@ YoutubeDownloader.exe
 
 ### Tela Atualizar (equivale ao update.bat)
 
-* Tabela com versão instalada, versão mais recente e status de cada binário
-* Botões para atualizar só o yt-dlp, só o FFmpeg ou ambos, com resumo OK/FALHOU
+* Tabela com versão instalada, versão mais recente e status de cada binário (badges coloridos)
+* Botões **Atualizar yt-dlp**, **Atualizar FFmpeg**, **Atualizar tudo** — desativados automaticamente quando ambos já estão atualizados
+* Botão **Excluir binários** (vermelho) com confirmação em duas etapas para limpar a pasta `bin/`
+* Botão **Verificar atualizações** com feedback visual: "Verificando..." → "Atualizados" (verde) ou lista de desatualizados
+* Feedback textual colorido durante e após operações (azul durante, verde sucesso, vermelho erro)
 * Ao abrir o app, as versões são verificadas em segundo plano e um aviso aparece se houver atualização
-* Se a pasta `bin/` não existir, o app abre direto nesta aba e instala tudo sozinho
+* Se a pasta `bin/` não existir, o app abre direto nesta tela e instala tudo sozinho
 * Botão **← Voltar** retorna à tela de download
 
 Para compilar a partir do código-fonte (`app/`), com a toolchain Rust instalada:
