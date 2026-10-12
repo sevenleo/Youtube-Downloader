@@ -1,5 +1,4 @@
-//! Atualizador equivalente ao update.bat. Ver plano: paridade update.bat.
-//! DONO DESTE ARQUIVO: agente core-update.
+//! Binary updater equivalent to update.bat. Parity with update.bat.
 
 use anyhow::{Context, Result};
 use std::fs;
@@ -10,36 +9,36 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::state::{BadgeState, BinTarget, BinaryStatus, UiEvent};
 
-/// Fontes do yt-dlp: oficial primeiro, fallback nightly (mesma ordem do .bat).
+/// yt-dlp download sources: official first, fallback to nightly builds.
 const YTDLP_SOURCES: [&str; 2] = [
     "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe",
     "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/latest/download/yt-dlp.exe",
 ];
 
-/// Fontes do FFmpeg: oficial BtbN primeiro, fallback gyan.dev (mesma ordem do .bat).
+/// FFmpeg download sources: official BtbN builds first, fallback to gyan.dev.
 const FFMPEG_SOURCES: [&str; 2] = [
     "https://github.com/BtbN/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl.zip",
     "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip",
 ];
 
-/// Tentativas por fonte (equivale ao `curl --retry 3` do .bat).
+/// Attempts per download source (matches `curl --retry 3` in .bat).
 const ATTEMPTS_PER_SOURCE: u32 = 3;
 
-/// Passo aproximado de emissao de progresso (em pontos percentuais).
+/// Approximate step for emitting progress (percentage points).
 const PROGRESS_STEP: f32 = 5.0;
 
-/// Cliente HTTP para a aba Atualizar e a thumbnail.
-/// Reqwest blocking + rustls + `User-Agent: yt-updater` (obrigatorio p/ API do GitHub).
+/// HTTP client for Update tab and thumbnail fetching.
+/// Reqwest blocking + rustls + `User-Agent: yt-updater` (required by GitHub API).
 pub fn http_client() -> Result<reqwest::blocking::Client> {
     reqwest::blocking::Client::builder()
         .user_agent("yt-updater")
         .timeout(Duration::from_secs(30))
         .build()
-        .context("falha ao criar cliente HTTP")
+        .context("failed to create HTTP client")
 }
 
-/// Consulta versoes mais recentes: (tag yt-dlp, data-yyyyMMdd do build FFmpeg).
-/// Cada uma vira None se falhar ("indisponivel") - nunca propaga erro.
+/// Fetches latest versions: (yt-dlp tag, FFmpeg build date yyyyMMdd).
+/// Each returns None on failure ("unavailable") - never propagates error.
 pub fn fetch_latest_versions(
     client: &reqwest::blocking::Client,
 ) -> (Option<String>, Option<String>) {
@@ -76,8 +75,8 @@ fn fetch_ffmpeg_build_date(client: &reqwest::blocking::Client) -> Option<String>
     published_to_yyyymmdd(published.trim())
 }
 
-/// `published_at` ja vem em UTC ("2026-10-05T12:34:56Z"): yyyyMMdd = ano+mes+dia
-/// por fatiamento da string, sem conversao de fuso (igual ao .bat).
+/// `published_at` arrives in UTC ("2026-10-05T12:34:56Z"): yyyyMMdd = year+month+day
+/// by string slicing, without timezone conversion (matches .bat).
 fn published_to_yyyymmdd(s: &str) -> Option<String> {
     let b = s.as_bytes();
     if b.len() < 10 || b[4] != b'-' || b[7] != b'-' {
@@ -93,9 +92,9 @@ fn published_to_yyyymmdd(s: &str) -> Option<String> {
     Some(format!("{y}{m}{d}"))
 }
 
-/// Le versoes instaladas em `bin_dir`: (yt-dlp, ffmpeg-builddate).
-/// yt-dlp: 1a linha de `--version`. ffmpeg: regex `-(\d{8})` na 1a linha de `-version`
-/// (se nao casar, linha inteira). Ausente = None ("nao instalado").
+/// Reads installed versions in `bin_dir`: (yt-dlp, ffmpeg-builddate).
+/// yt-dlp: 1st line of `--version`. ffmpeg: regex `-(\d{8})` on 1st line of `-version`
+/// (if no match, entire line). Missing = None ("not installed").
 pub fn read_installed(bin_dir: &Path) -> (Option<String>, Option<String>) {
     let ytdlp = first_line_of(&bin_dir.join("yt-dlp.exe"), "--version");
 
@@ -114,8 +113,8 @@ pub fn read_installed(bin_dir: &Path) -> (Option<String>, Option<String>) {
     (ytdlp, ffmpeg)
 }
 
-/// Roda `program arg` e devolve a 1a linha aparada do stdout.
-/// Qualquer falha (ausente, erro de spawn, saida vazia) vira None.
+/// Runs `program arg` and returns the trimmed 1st stdout line.
+/// Any failure returns None.
 fn first_line_of(program: &Path, arg: &str) -> Option<String> {
     let out = crate::process::run_capture_stdout(program, &[arg.to_string()]).ok()?;
     let line = out.lines().next().unwrap_or("").trim();
@@ -126,7 +125,7 @@ fn first_line_of(program: &Path, arg: &str) -> Option<String> {
     }
 }
 
-/// Regras EXATAS do update.bat (comparacao case-insensitive).
+/// Exact inference rules from update.bat (case-insensitive comparison).
 pub fn badge_of(installed: Option<&str>, latest: Option<&str>) -> BadgeState {
     match (installed, latest) {
         (None, Some(_)) => BadgeState::NotInstalled,
@@ -142,8 +141,8 @@ pub fn badge_of(installed: Option<&str>, latest: Option<&str>) -> BadgeState {
     }
 }
 
-/// Guarda RAII: a pasta temporaria e removida no drop (sucesso OU falha),
-/// como o `rmdir /s /q "%TEMP_DIR%"` do .bat.
+/// RAII guard: temporary folder is removed on drop (success OR failure),
+/// matching `rmdir /s /q "%TEMP_DIR%"` in .bat.
 struct TempGuard(PathBuf);
 
 impl Drop for TempGuard {
@@ -152,7 +151,7 @@ impl Drop for TempGuard {
     }
 }
 
-/// Cria `%TEMP%\yt-updater-<nanos>-<pid>` (unicidade sem crate rand).
+/// Creates `%TEMP%\yt-updater-<nanos>-<pid>`.
 fn unique_temp_dir() -> Result<PathBuf> {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -161,13 +160,12 @@ fn unique_temp_dir() -> Result<PathBuf> {
     let dir =
         std::env::temp_dir().join(format!("yt-updater-{nanos}-{}", std::process::id()));
     fs::create_dir_all(&dir)
-        .with_context(|| format!("nao foi possivel criar a pasta {}", dir.display()))?;
+        .with_context(|| format!("could not create directory {}", dir.display()))?;
     Ok(dir)
 }
 
-/// Writer que envolve o arquivo de destino e emite `UpdateProgress` durante o
-/// `copy_to` (streaming: nunca carrega tudo na RAM). Percentual via
-/// content-length; -1.0 quando o tamanho e desconhecido.
+/// Writer wrapping destination file and emitting `UpdateProgress` during
+/// `copy_to` (streaming: never loads entire archive into RAM).
 struct ProgressWriter<'a> {
     inner: fs::File,
     emit: &'a Sender<UiEvent>,
@@ -189,9 +187,9 @@ impl<'a> ProgressWriter<'a> {
     fn send(&mut self, percent: f32) {
         self.last_sent = percent;
         let msg = if percent < 0.0 {
-            format!("Baixando {}...", self.label)
+            format!("Downloading {}...", self.label)
         } else {
-            format!("Baixando {}... {percent:.0}%", self.label)
+            format!("Downloading {}... {percent:.0}%", self.label)
         };
         let _ = self.emit.send(UiEvent::UpdateProgress {
             target: self.target,
@@ -205,7 +203,7 @@ impl<'a> ProgressWriter<'a> {
         if force {
             self.send(percent);
         } else if percent < 0.0 {
-            // Tamanho desconhecido: so inicio/fim (evita spam de eventos).
+            // Unknown size: only start and end to avoid event spam.
         } else if percent >= 100.0 || percent - self.last_sent >= PROGRESS_STEP {
             self.send(percent);
         }
@@ -225,7 +223,7 @@ impl Write for ProgressWriter<'_> {
     }
 }
 
-/// Baixa UMA url em streaming (`response.copy_to`, nunca tudo na RAM).
+/// Downloads a single URL in streaming mode.
 fn download_one(
     client: &reqwest::blocking::Client,
     url: &str,
@@ -237,14 +235,14 @@ fn download_one(
     let mut resp = client
         .get(url)
         .send()
-        .with_context(|| format!("falha de rede ao baixar {label} de {url}"))?;
+        .with_context(|| format!("network error downloading {label} from {url}"))?;
     let status = resp.status();
     if !status.is_success() {
-        anyhow::bail!("HTTP {status} ao baixar {label} de {url}");
+        anyhow::bail!("HTTP {status} downloading {label} from {url}");
     }
     let total = resp.content_length();
     let file = fs::File::create(dest)
-        .with_context(|| format!("nao foi possivel criar {}", dest.display()))?;
+        .with_context(|| format!("could not create {}", dest.display()))?;
     let mut out = ProgressWriter {
         inner: file,
         emit,
@@ -256,13 +254,12 @@ fn download_one(
     };
     out.emit_progress(true); // 0%
     resp.copy_to(&mut out)
-        .with_context(|| format!("falha ao gravar {label}"))?;
-    out.emit_progress(true); // 100% (ou -1.0 se tamanho desconhecido)
+        .with_context(|| format!("failed to write {label}"))?;
+    out.emit_progress(true); // 100% (or -1.0 if unknown size)
     Ok(())
 }
 
-/// Baixa com RETRY 3 por fonte e fallback para a proxima fonte (como o .bat:
-/// oficial primeiro, so depois da ultima falha tenta a alternativa).
+/// Downloads with RETRY 3 per source and fallback to next source.
 fn download_with_fallback(
     client: &reqwest::blocking::Client,
     sources: &[&str],
@@ -272,7 +269,7 @@ fn download_with_fallback(
     emit: &Sender<UiEvent>,
     missing_msg: &str,
 ) -> Result<()> {
-    let mut last_err = String::from("sem detalhes");
+    let mut last_err = String::from("no details");
     for url in sources {
         for attempt in 1..=ATTEMPTS_PER_SOURCE {
             match download_one(client, url, dest, target, label, emit) {
@@ -283,7 +280,7 @@ fn download_with_fallback(
                         target,
                         percent: -1.0,
                         msg: format!(
-                            "{label}: tentativa {attempt}/{ATTEMPTS_PER_SOURCE} em {url} falhou; tentando novamente..."
+                            "{label}: attempt {attempt}/{ATTEMPTS_PER_SOURCE} from {url} failed; retrying..."
                         ),
                     });
                 }
@@ -293,8 +290,7 @@ fn download_with_fallback(
     Err(anyhow::anyhow!("{missing_msg} ({last_err})"))
 }
 
-/// Atualiza o yt-dlp: baixa (oficial -> fallback nightly), copia por cima de
-/// `bin\yt-dlp.exe` e reexecuta `--version` para o detalhe (como o .bat).
+/// Updates yt-dlp: downloads, overwrites `bin\yt-dlp.exe` and re-runs `--version`.
 fn update_ytdlp(
     client: &reqwest::blocking::Client,
     bin_dir: &Path,
@@ -309,30 +305,29 @@ fn update_ytdlp(
         BinTarget::YtDlp,
         "yt-dlp",
         emit,
-        "nao foi possivel baixar o yt-dlp de nenhuma fonte",
+        "could not download yt-dlp from any source",
     )?;
     let dest = bin_dir.join("yt-dlp.exe");
     fs::copy(&staged, &dest)
-        .with_context(|| "nao foi possivel copiar yt-dlp.exe para a pasta bin")?;
-    let detail = first_line_of(&dest, "--version").unwrap_or_else(|| "yt-dlp atualizado".to_string());
+        .with_context(|| "could not copy yt-dlp.exe to bin folder")?;
+    let detail = first_line_of(&dest, "--version").unwrap_or_else(|| "yt-dlp updated".to_string());
     let _ = emit.send(UiEvent::UpdateProgress {
         target: BinTarget::YtDlp,
         percent: 100.0,
-        msg: format!("yt-dlp atualizado: {detail}"),
+        msg: format!("yt-dlp updated: {detail}"),
     });
     Ok(detail)
 }
 
-/// Extrai o zip do FFmpeg para `bin_dir`: localiza `*/bin/ffmpeg.exe`
-/// (case-insensitive, barras `/`), extrai ffmpeg/ffplay/ffprobe do MESMO
-/// diretorio bin SEMPRE via `enclosed_name()` (anti zip-slip).
+/// Extracts FFmpeg zip archive to `bin_dir`: locates `*/bin/ffmpeg.exe`,
+/// extracting ffmpeg/ffplay/ffprobe from the SAME bin directory via `enclosed_name()`.
 fn extract_ffmpeg_zip(zip_path: &Path, bin_dir: &Path) -> Result<()> {
     let file =
-        fs::File::open(zip_path).context("nao foi possivel abrir o pacote do FFmpeg")?;
+        fs::File::open(zip_path).context("could not open FFmpeg archive")?;
     let mut zip =
-        zip::ZipArchive::new(file).context("nao foi possivel extrair o pacote do FFmpeg")?;
+        zip::ZipArchive::new(file).context("could not extract FFmpeg archive")?;
 
-    // (indice, nome normalizado) de todas as entradas.
+    // (index, normalized name) for all entries.
     let mut entries: Vec<(usize, String)> = Vec::new();
     for i in 0..zip.len() {
         if let Some(name) = zip.name_for_index(i) {
@@ -346,44 +341,42 @@ fn extract_ffmpeg_zip(zip_path: &Path, bin_dir: &Path) -> Result<()> {
         .map(|(i, n)| (*i, n.clone()));
     let ffmpeg_norm = ffmpeg_entry
         .map(|(_, n)| n)
-        .ok_or_else(|| anyhow::anyhow!("ffmpeg.exe nao foi encontrado no pacote"))?;
-    // Prefixo do diretorio bin dentro do pacote (ex.: "x/bin/").
+        .ok_or_else(|| anyhow::anyhow!("ffmpeg.exe not found in archive"))?;
+    // Prefix of the bin directory inside the archive (e.g. "x/bin/").
     let bin_prefix = ffmpeg_norm
         .strip_suffix("ffmpeg.exe")
         .unwrap_or("")
         .to_string();
 
-    // ffmpeg.exe e obrigatorio; ffplay/ffprobe sao extraidos se presentes no
-    // mesmo bin (ex.: o fallback gyan essentials nao traz ffplay.exe).
+    // ffmpeg.exe is mandatory; ffplay/ffprobe are extracted if present.
     for exe in ["ffmpeg.exe", "ffplay.exe", "ffprobe.exe"] {
         let wanted = format!("{bin_prefix}{exe}");
         let idx = entries.iter().find(|(_, n)| *n == wanted).map(|(i, _)| *i);
         let Some(i) = idx else {
             if exe == "ffmpeg.exe" {
-                anyhow::bail!("ffmpeg.exe nao foi encontrado no pacote");
+                anyhow::bail!("ffmpeg.exe not found in archive");
             }
             continue;
         };
         let mut entry = zip
             .by_index(i)
-            .with_context(|| format!("nao foi possivel ler {exe} no pacote"))?;
+            .with_context(|| format!("could not read {exe} from archive"))?;
         let safe = entry
             .enclosed_name()
-            .ok_or_else(|| anyhow::anyhow!("entrada insegura no pacote: {wanted}"))?;
+            .ok_or_else(|| anyhow::anyhow!("insecure archive entry: {wanted}"))?;
         let fname = safe
             .file_name()
-            .ok_or_else(|| anyhow::anyhow!("entrada invalida no pacote: {wanted}"))?;
+            .ok_or_else(|| anyhow::anyhow!("invalid archive entry: {wanted}"))?;
         let dest = bin_dir.join(fname);
         let mut out = fs::File::create(&dest)
-            .with_context(|| format!("nao foi possivel copiar {}", dest.display()))?;
+            .with_context(|| format!("could not copy {}", dest.display()))?;
         io::copy(&mut entry, &mut out)
-            .with_context(|| format!("nao foi possivel copiar os binarios do FFmpeg"))?;
+            .with_context(|| format!("could not copy FFmpeg binaries"))?;
     }
     Ok(())
 }
 
-/// Atualiza o FFmpeg: baixa o zip (BtbN -> fallback gyan), extrai os 3 exes
-/// para `bin\` e mostra a 1a linha de `ffmpeg -version` (como o .bat).
+/// Updates FFmpeg: downloads zip archive, extracts binaries to `bin\`.
 fn update_ffmpeg(
     client: &reqwest::blocking::Client,
     bin_dir: &Path,
@@ -398,30 +391,25 @@ fn update_ffmpeg(
         BinTarget::FFmpeg,
         "FFmpeg",
         emit,
-        "nao foi possivel baixar o FFmpeg de nenhuma fonte",
+        "could not download FFmpeg from any source",
     )?;
     let _ = emit.send(UiEvent::UpdateProgress {
         target: BinTarget::FFmpeg,
         percent: 100.0,
-        msg: "Extraindo pacote do FFmpeg...".to_string(),
+        msg: "Extracting FFmpeg package...".to_string(),
     });
     extract_ffmpeg_zip(&zip_path, bin_dir)?;
     let detail = first_line_of(&bin_dir.join("ffmpeg.exe"), "-version")
-        .unwrap_or_else(|| "FFmpeg atualizado".to_string());
+        .unwrap_or_else(|| "FFmpeg updated".to_string());
     let _ = emit.send(UiEvent::UpdateProgress {
         target: BinTarget::FFmpeg,
         percent: 100.0,
-        msg: format!("FFmpeg atualizado: {detail}"),
+        msg: format!("FFmpeg updated: {detail}"),
     });
     Ok(detail)
 }
 
-/// Executa as atualizacoes pedidas (com fallbacks e resumo), emitindo UiEvent de
-/// progresso; retorna (alvo, sucesso, detalhe) por binario. Ver plano para URLs e
-/// sequencias exatas (retry 3 por fonte, zip via `enclosed_name()`, copia os 3 exes).
-///
-/// Falha num alvo NAO aborta o outro (resumo `false` + motivo). A pasta
-/// temporaria e limpa SEMPRE (guarda RAII), em sucesso ou falha.
+/// Runs requested binary updates with fallbacks and emits progress events.
 pub fn run_update(
     bin_dir: &Path,
     targets: &[BinTarget],
@@ -430,9 +418,8 @@ pub fn run_update(
     let client = http_client()?;
     let temp_dir = unique_temp_dir()?;
     let _guard = TempGuard(temp_dir.clone());
-    // Equivale ao `if not exist ... mkdir` do .bat (ERROR_BIN).
     fs::create_dir_all(bin_dir)
-        .with_context(|| format!("nao foi possivel criar a pasta {}", bin_dir.display()))?;
+        .with_context(|| format!("could not create directory {}", bin_dir.display()))?;
 
     let mut results = Vec::new();
     if targets.contains(&BinTarget::YtDlp) {
@@ -448,7 +435,6 @@ pub fn run_update(
         }
     }
     Ok(results)
-    // `_guard` sai de escopo aqui e remove a pasta temporaria SEMPRE.
 }
 
 /// Monta o status completo de um binario a partir de instalada/mais recente.

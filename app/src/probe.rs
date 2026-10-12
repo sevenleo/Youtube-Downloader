@@ -1,40 +1,39 @@
-//! Analise da URL via `yt-dlp --dump-single-json`. Ver plano: paridade download.bat.
-//! DONO DESTE ARQUIVO: agente core-download.
+//! URL analysis via `yt-dlp --dump-single-json`. Parity with download.bat.
 
 use anyhow::{Context, Result};
 use std::path::Path;
 
 use crate::process::run_capture_stdout;
 
-/// Uma resolucao H.264 realmente disponivel no video.
+/// An H.264 resolution actually available in the video.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct H264Resolution {
     pub height: u32,
-    /// Maior largura entre os formatos dessa altura.
+    /// Largest width among formats with this height.
     pub width: u32,
 }
 
-/// Metadados do video necessarios para a tela e para o download.
+/// Video metadata required for UI display and download execution.
 #[derive(Clone, Debug)]
 pub struct VideoInfo {
     pub title: String,
-    /// Duracao em segundos (0 se desconhecida).
+    /// Duration in seconds (0 if unknown).
     pub duration_secs: u64,
-    /// URL da miniatura (campo `thumbnail` do JSON), se houver.
+    /// Thumbnail URL (from JSON `thumbnail` field), if available.
     pub thumbnail_url: Option<String>,
-    /// Resolucoes H.264 (vcodec iniciado por "avc1"), ordenadas por altura.
+    /// H.264 resolutions (vcodec starting with "avc1"), sorted by height.
     pub resolutions: Vec<H264Resolution>,
 }
 
 impl VideoInfo {
-    /// Titulo seguro para nome de arquivo (chars invalidos do Windows viram `_`).
+    /// Safe title for filenames (invalid Windows characters replaced with `_`).
     pub fn safe_title(&self) -> String {
         crate::download::sanitize_filename(&self.title)
     }
 }
 
-/// Numero > 0 vindo do JSON (yt-dlp emite ints; aceita float/string por robustez,
-/// como o cast `[int]` do .bat).
+/// Positive integer parsed from JSON (yt-dlp emits ints; accepts float/string for robustness,
+/// similar to `[int]` cast in .bat).
 fn json_u32_positive(v: &serde_json::Value) -> Option<u32> {
     if let Some(n) = v.as_u64() {
         return u32::try_from(n).ok().filter(|&x| x > 0);
@@ -57,12 +56,12 @@ fn json_u32_positive(v: &serde_json::Value) -> Option<u32> {
     None
 }
 
-/// Roda `yt-dlp --force-ipv4 --dump-single-json --skip-download --no-warnings <url>`
-/// e extrai titulo/duracao/thumbnail/resolucoes H.264. Erros mapeados como no .bat
-/// (titulo vazio = ERROR_TITLE; sem resolucao H.264 = ERROR_FORMATS).
+/// Runs `yt-dlp --force-ipv4 --dump-single-json --skip-download --no-warnings <url>`
+/// and extracts title/duration/thumbnail/H.264 resolutions. Errors mapped as in .bat
+/// (empty title = ERROR_TITLE; no H.264 resolution = ERROR_FORMATS).
 pub fn analyze(ytdlp: &Path, url: &str) -> Result<VideoInfo> {
     if url.trim().is_empty() {
-        anyhow::bail!("ERRO: nenhum link foi informado.");
+        anyhow::bail!("ERROR: no link was provided.");
     }
     let args: Vec<String> = [
         "--force-ipv4",
@@ -76,19 +75,19 @@ pub fn analyze(ytdlp: &Path, url: &str) -> Result<VideoInfo> {
     .collect();
 
     let out = run_capture_stdout(ytdlp, &args)
-        .context("falha ao executar yt-dlp --dump-single-json")?;
+        .context("failed to execute yt-dlp --dump-single-json")?;
     let v: serde_json::Value = serde_json::from_str(&out)
-        .map_err(|_| anyhow::anyhow!("ERRO: nao foi possivel obter o titulo."))?;
+        .map_err(|_| anyhow::anyhow!("ERROR: could not retrieve title."))?;
 
     let title = v
         .get("title")
         .and_then(|t| t.as_str())
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| anyhow::anyhow!("ERRO: nao foi possivel obter o titulo."))?;
+        .ok_or_else(|| anyhow::anyhow!("ERROR: could not retrieve title."))?;
 
-    // Formatos com vcodec comecando com "avc1" e height/width > 0,
-    // agrupados por altura (maior largura do grupo), ordenados por altura.
+    // Formats with vcodec starting with "avc1" and height/width > 0,
+    // grouped by height (maximum width of group), sorted by height.
     let mut by_height: std::collections::BTreeMap<u32, u32> = std::collections::BTreeMap::new();
     if let Some(formats) = v.get("formats").and_then(|f| f.as_array()) {
         for f in formats {
@@ -115,7 +114,7 @@ pub fn analyze(ytdlp: &Path, url: &str) -> Result<VideoInfo> {
         .map(|(height, width)| H264Resolution { height, width })
         .collect();
     if resolutions.is_empty() {
-        anyhow::bail!("ERRO: nao foram encontradas resolucoes H.264 para este video.");
+        anyhow::bail!("ERROR: no H.264 resolutions found for this video.");
     }
 
     let duration_secs = v
@@ -137,7 +136,7 @@ pub fn analyze(ytdlp: &Path, url: &str) -> Result<VideoInfo> {
         })
         .unwrap_or(0);
 
-    // Campo `thumbnail`; fallback: ultima entrada de `thumbnails` com url.
+    // Field `thumbnail`; fallback: last entry in `thumbnails` with valid url.
     let thumbnail_url = v
         .get("thumbnail")
         .and_then(|t| t.as_str())
@@ -165,15 +164,15 @@ pub fn analyze(ytdlp: &Path, url: &str) -> Result<VideoInfo> {
     })
 }
 
-/// Baixa a miniatura (para a UI exibir). Falha nao quebra o fluxo.
+/// Downloads thumbnail (for UI display). Failure does not interrupt the main workflow.
 pub fn fetch_thumbnail(client: &reqwest::blocking::Client, url: &str) -> Result<Vec<u8>> {
     let bytes = client
         .get(url)
         .send()
-        .context("falha ao baixar miniatura")?
+        .context("failed to download thumbnail")?
         .error_for_status()
-        .context("miniatura retornou status de erro")?
+        .context("thumbnail returned error status")?
         .bytes()
-        .context("falha ao ler bytes da miniatura")?;
+        .context("failed to read thumbnail bytes")?;
     Ok(bytes.to_vec())
 }

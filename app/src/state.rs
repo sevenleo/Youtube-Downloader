@@ -1,30 +1,28 @@
-//! CONTRATO CONGELADO entre UI e nucleo da aplicacao.
-//! NENHUM agente pode alterar este arquivo. Se algo estiver errado ou faltar,
-//! resolva dentro dos SEUS arquivos e reporte na resposta final.
+//! Interface contract between UI and application core.
 
 use std::path::PathBuf;
 
-/// Binario gerenciado pela aba Atualizar.
+/// Binary managed by the Update tab.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BinTarget {
     YtDlp,
     FFmpeg,
 }
 
-/// Status de um binario (badge na UI). Regras de inferencia no plano (update.bat).
+/// Status of a binary (badge in UI). Inference rules match update.bat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BadgeState {
-    /// Verde: instalado == mais recente.
+    /// Green: installed == latest.
     UpToDate,
-    /// Amarelo: instalado != mais recente.
+    /// Yellow: installed != latest.
     UpdateAvailable,
-    /// Vermelho: nao instalado e ha versao disponivel.
+    /// Red: not installed and a version is available.
     NotInstalled,
-    /// Cinza: nao foi possivel verificar.
+    /// Gray: unable to verify.
     Unknown,
 }
 
-/// Versao instalada + mais recente + badge, para um binario.
+/// Installed version + latest version + badge status for a binary.
 #[derive(Clone, Debug)]
 pub struct BinaryStatus {
     pub installed: Option<String>,
@@ -32,14 +30,14 @@ pub struct BinaryStatus {
     pub badge: BadgeState,
 }
 
-/// Conteudo baixado: inteiro ou trecho com timestamps ("HH:MM:SS" ou "MM:SS").
+/// Download content mode: full video or clip with timestamps ("HH:MM:SS" or "MM:SS").
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VideoMode {
     Full,
     Clip { start: String, end: String },
 }
 
-/// Conteiner de saida.
+/// Output container format.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ContainerFormat {
     Mkv,
@@ -55,7 +53,7 @@ impl ContainerFormat {
     }
 }
 
-/// Parametros de um download, vindos da UI.
+/// Download parameters passed from the UI.
 #[derive(Clone, Debug)]
 pub struct DownloadParams {
     pub url: String,
@@ -66,7 +64,7 @@ pub struct DownloadParams {
     pub video_title: String,
 }
 
-/// Etapa visivel durante o download.
+/// Visible stage during download.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DownloadStage {
     Downloading,
@@ -75,30 +73,30 @@ pub enum DownloadStage {
     Finalizing,
 }
 
-/// Eventos enviados por threads de trabalho para a thread de UI.
-/// A thread de UI aplica com invoke_from_event_loop / drenagem por timer.
+/// Events sent by worker threads to the UI thread.
+/// The UI thread applies them with invoke_from_event_loop / timer draining.
 #[derive(Debug)]
 pub enum UiEvent {
-    /// Analise da URL concluida.
+    /// URL analysis completed.
     ProbeDone(crate::probe::VideoInfo),
-    /// Falha na analise (semantica propria: nao exige pasta/log definidos).
+    /// Analysis failure (self-contained: does not require output directory or log).
     ProbeError(String),
-    /// Bytes da miniatura (decodificar na UI com a crate `image`).
+    /// Thumbnail bytes (decoded in UI with the `image` crate).
     ThumbnailReady(Result<Vec<u8>, String>),
-    /// Progresso de download 0.0..=100.0.
+    /// Download progress 0.0..=100.0.
     DownloadProgress { percent: f32 },
-    /// Mudou a etapa visivel.
+    /// Active stage changed.
     StageChanged(DownloadStage),
-    /// Uma linha para o log ao vivo da UI.
+    /// A single line for the in-app live log.
     LogLine(String),
-    /// Sucesso: caminho do arquivo final.
+    /// Success: final file path.
     DownloadDone(String),
-    /// Falha amigavel (detalhe tecnico ja foi ao download.log).
+    /// User-friendly failure message (technical details are in download.log).
     DownloadError(String),
-    /// Resultado da checagem de versoes (boot ou manual).
+    /// Version check result (boot or manual).
     UpdateStatusReady { ytdlp: BinaryStatus, ffmpeg: BinaryStatus },
-    /// Progresso de um update (bytes baixados -> percentual aproximado).
+    /// Update progress (downloaded bytes -> approximate percentage).
     UpdateProgress { target: BinTarget, percent: f32, msg: String },
-    /// Resumo final: (alvo, sucesso, detalhe/versao).
+    /// Final summary: (target, success, detail/version).
     UpdateFinished { results: Vec<(BinTarget, bool, String)> },
 }

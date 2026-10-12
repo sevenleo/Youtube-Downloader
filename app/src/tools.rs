@@ -1,10 +1,9 @@
-//! Localizacao de yt-dlp/ffmpeg. Ver plano: "Resolucao de caminhos".
-//! DONO DESTE ARQUIVO: agente core-download.
+//! Discovery of yt-dlp/ffmpeg binaries. Path resolution.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-/// Caminhos resolvidos dos binarios usados pela aba Download.
+/// Resolved paths of binaries used by the Download tab.
 #[derive(Clone, Debug)]
 pub struct ToolPaths {
     pub ytdlp: PathBuf,
@@ -17,12 +16,12 @@ fn exe_dir() -> Option<PathBuf> {
         .and_then(|p| p.parent().map(|d| d.to_path_buf()))
 }
 
-/// Procura um binario (primeiro nome que existir vence) na ordem:
-/// 1. `bin/` ao lado do exe em execucao (caso normal);
-/// 2. `bin/` subindo ate 5 niveis a partir do exe (p/ `cargo run` -> target/debug);
-/// 3. `PATH` do sistema (fallback dos .bat).
+/// Searches for a binary (first matching name wins) in order:
+/// 1. `bin/` directory next to the running executable (standard production setup);
+/// 2. `bin/` ascending up to 5 parent levels from the executable (for `cargo run` in target/debug);
+/// 3. System `PATH` (fallback matching the .bat scripts).
 fn find_binary(names: &[&str]) -> Option<PathBuf> {
-    // (1) + (2): nivel 0 = dir do exe; sobe ate 5 niveis.
+    // (1) + (2): level 0 = exe dir; ascends up to 5 levels.
     if let Some(mut dir) = exe_dir() {
         for _ in 0..=5 {
             for name in names {
@@ -37,10 +36,10 @@ fn find_binary(names: &[&str]) -> Option<PathBuf> {
             }
         }
     }
-    // (3): PATH (com e sem extensao .exe).
+    // (3): PATH (with and without .exe extension).
     if let Ok(path_var) = std::env::var("PATH") {
         for entry in std::env::split_paths(&path_var) {
-            // Remove aspas que alguns instaladores deixam nas entradas.
+            // Strip quotes that some installers leave in PATH entries.
             let entry_str = entry.to_string_lossy();
             let trimmed = entry_str.trim_matches('"');
             let entry = Path::new(trimmed);
@@ -55,29 +54,29 @@ fn find_binary(names: &[&str]) -> Option<PathBuf> {
     None
 }
 
-/// Localiza yt-dlp.exe e ffmpeg.exe. Ordem (a primeira que servir vence):
-/// 1. `bin/` ao lado do exe em execucao (caso normal);
-/// 2. `bin/` na raiz do repositorio (subindo dirs a partir de current_exe, p/ `cargo run`);
-/// 3. `PATH` do sistema (fallback dos .bat).
+/// Locates yt-dlp.exe and ffmpeg.exe. Order (first match wins):
+/// 1. `bin/` directory next to running executable (standard case);
+/// 2. `bin/` at workspace root (ascending parent dirs from current_exe, for `cargo run`);
+/// 3. System `PATH` (fallback matching .bat scripts).
 pub fn locate() -> Result<ToolPaths> {
     let ytdlp = find_binary(&["yt-dlp.exe", "yt-dlp"])
-        .ok_or_else(|| anyhow::anyhow!("ERRO: yt-dlp nao foi encontrado na pasta bin nem no PATH."))?;
+        .ok_or_else(|| anyhow::anyhow!("ERROR: yt-dlp was not found in bin directory or in PATH."))?;
     let ffmpeg = find_binary(&["ffmpeg.exe", "ffmpeg"])
-        .ok_or_else(|| anyhow::anyhow!("ERRO: ffmpeg nao foi encontrado na pasta bin nem no PATH."))?;
+        .ok_or_else(|| anyhow::anyhow!("ERROR: ffmpeg was not found in bin directory or in PATH."))?;
     Ok(ToolPaths { ytdlp, ffmpeg })
 }
 
-/// Pasta `bin` canonica do projeto (ao lado do exe); criada se nao existir.
-/// Usada pela aba Atualizar, inclusive quando os binarios ainda nao existem.
+/// Canonical project `bin` folder (next to the executable); created if it does not exist.
+/// Used by the Update tab, including when binaries have not yet been downloaded.
 pub fn ensure_bin_dir() -> Result<PathBuf> {
-    // (1): sobe niveis do exe procurando pasta existente que contenha `bin/`.
+    // (1): ascend directories from exe looking for existing folder containing `bin/`.
     if let Some(mut dir) = exe_dir() {
         for _ in 0..=5 {
             let bin = dir.join("bin");
             if bin.is_dir() {
-                // Garante existencia (cria se preciso) e retorna.
+                // Ensure existence (create if needed) and return.
                 std::fs::create_dir_all(&bin)
-                    .with_context(|| format!("nao foi possivel criar {}", bin.display()))?;
+                    .with_context(|| format!("could not create {}", bin.display()))?;
                 return Ok(bin);
             }
             match dir.parent() {
@@ -86,11 +85,11 @@ pub fn ensure_bin_dir() -> Result<PathBuf> {
             }
         }
     }
-    // (2): `<dir-do-exe>/bin` + create_dir_all.
+    // (2): `<exe-dir>/bin` + create_dir_all.
     let fallback = exe_dir()
         .map(|d| d.join("bin"))
         .unwrap_or_else(|| PathBuf::from("bin"));
     std::fs::create_dir_all(&fallback)
-        .with_context(|| format!("nao foi possivel criar {}", fallback.display()))?;
+        .with_context(|| format!("could not create {}", fallback.display()))?;
     Ok(fallback)
 }

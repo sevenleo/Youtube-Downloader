@@ -1,7 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-//! Entry point da GUI. O `state.rs` e o contrato (congelado) entre UI e nucleo.
-//! DONO DESTE ARQUIVO: agente de UI/wiring.
+//! GUI entry point. `state.rs` is the interface contract between UI and core.
 
 mod download;
 mod log;
@@ -31,7 +30,7 @@ use state::{
     BadgeState, BinTarget, ContainerFormat, DownloadParams, DownloadStage, UiEvent, VideoMode,
 };
 
-/// Segundos -> "HH:MM:SS".
+/// Seconds -> "HH:MM:SS".
 fn fmt_duration(total_secs: u64) -> SharedString {
     format!(
         "{:02}:{:02}:{:02}",
@@ -42,7 +41,7 @@ fn fmt_duration(total_secs: u64) -> SharedString {
     .into()
 }
 
-/// Badge do contrato -> int da UI (0 ok, 1 update, 2 nao instalado, 3 desconhecido).
+/// Contract badge -> UI int (0 ok, 1 update available, 2 not installed, 3 unknown).
 fn badge_to_int(b: BadgeState) -> i32 {
     match b {
         BadgeState::UpToDate => 0,
@@ -69,15 +68,15 @@ fn target_name(t: BinTarget) -> &'static str {
     }
 }
 
-/// "yt-dlp: OK (versao X)" / "FFmpeg: FALHOU (motivo)", um por linha.
+/// "yt-dlp: OK (version X)" / "FFmpeg: FAILED (reason)", one per line.
 fn fmt_update_summary(results: &[(BinTarget, bool, String)]) -> SharedString {
     results
         .iter()
         .map(|(t, ok, detail)| {
             if *ok {
-                format!("{}: OK (versao {})", target_name(*t), detail)
+                format!("{}: OK (version {})", target_name(*t), detail)
             } else {
-                format!("{}: FALHOU ({})", target_name(*t), detail)
+                format!("{}: FAILED ({})", target_name(*t), detail)
             }
         })
         .collect::<Vec<_>>()
@@ -85,8 +84,8 @@ fn fmt_update_summary(results: &[(BinTarget, bool, String)]) -> SharedString {
         .into()
 }
 
-/// Acrescenta uma linha ao log ao vivo (chamado na thread da UI).
-/// Limita o historico para nao degradar a renderizacao.
+/// Appends a line to the live log (called on the UI thread).
+/// Limits history length to prevent rendering degradation.
 fn push_log(app: &AppWindow, line: String) {
     let model = app.get_log_lines();
     if model.row_count() > 1000 {
@@ -97,7 +96,7 @@ fn push_log(app: &AppWindow, line: String) {
     let _ = model.push_row(line.into());
 }
 
-/// Bytes da thumbnail -> `slint::Image` (falha = None, mantem placeholder).
+/// Thumbnail bytes -> `slint::Image` (failure = None, preserves placeholder).
 fn decode_thumbnail(bytes: &[u8]) -> Option<slint::Image> {
     let rgb = image::load_from_memory(bytes).ok()?.to_rgb8();
     let (w, h) = (rgb.width(), rgb.height());
@@ -114,7 +113,7 @@ fn status_text(v: &Option<String>) -> SharedString {
 }
 
 /// ensure_bin_dir -> read_installed -> http_client -> fetch_latest_versions
-/// -> UpdateStatusReady. Nunca falha: sem dados = Unknown.
+/// -> UpdateStatusReady. Never fails: missing data = Unknown.
 fn check_updates_and_emit(tx: &Sender<UiEvent>) {
     let (inst_y, inst_f) = match tools::ensure_bin_dir() {
         Ok(bin) => update::read_installed(&bin),
@@ -130,8 +129,8 @@ fn check_updates_and_emit(tx: &Sender<UiEvent>) {
     });
 }
 
-/// Aplica um UiEvent na janela. Roda SEMPRE na thread da UI
-/// (via `upgrade_in_event_loop` no dispatcher).
+/// Applies a UiEvent to the window. ALWAYS runs on the UI thread
+/// (via `upgrade_in_event_loop` in the dispatcher).
 fn apply_event(
     app: &AppWindow,
     ev: UiEvent,
@@ -155,12 +154,11 @@ fn apply_event(
             app.set_dl_error("".into());
             app.set_dl_final("".into());
             app.set_analysis_ok(true);
-            push_log(app, format!("Análise concluída: {n} qualidades encontradas."));
+            push_log(app, format!("Analysis complete: {n} qualities found."));
         }
         UiEvent::ThumbnailReady(res) => {
-            // Decodificado aqui (lado UI do dispatcher): `slint::Image` e !Send,
-            // entao os bytes viajam pelo canal e a decodificacao ocorre na
-            // thread da UI. Falha = mantem o placeholder.
+            // Decoded here (UI side of dispatcher): `slint::Image` is !Send,
+            // so bytes travel through channel and decoding occurs on UI thread.
             if let Ok(bytes) = res {
                 if let Some(img) = decode_thumbnail(&bytes) {
                     app.set_thumbnail(img);
@@ -181,18 +179,18 @@ fn apply_event(
             app.set_dl_final(path.clone().into());
             app.set_dl_percent(100.0);
             app.set_analysis_ok(false);
-            push_log(app, format!("Concluído: {path}"));
+            push_log(app, format!("Completed: {path}"));
         }
         UiEvent::ProbeError(msg) => {
             app.set_dl_state("error".into());
             app.set_dl_error(msg.clone().into());
             app.set_analysis_ok(false);
-            push_log(app, format!("ERRO: {msg}"));
+            push_log(app, format!("ERROR: {msg}"));
         }
         UiEvent::DownloadError(msg) => {
             app.set_dl_state("error".into());
             app.set_dl_error(msg.clone().into());
-            push_log(app, format!("ERRO: {msg}"));
+            push_log(app, format!("ERROR: {msg}"));
         }
         UiEvent::UpdateStatusReady { ytdlp, ffmpeg } => {
             app.set_ytdlp_installed(status_text(&ytdlp.installed));
@@ -201,23 +199,22 @@ fn apply_event(
             app.set_ffmpeg_installed(status_text(&ffmpeg.installed));
             app.set_ffmpeg_latest(status_text(&ffmpeg.latest));
             app.set_ffmpeg_badge(badge_to_int(ffmpeg.badge));
-            // Feedback da verificação manual
             app.set_upd_busy(false);
             let ytdlp_ok = ytdlp.badge == BadgeState::UpToDate;
             let ffmpeg_ok = ffmpeg.badge == BadgeState::UpToDate;
             let ytdlp_unknown = ytdlp.badge == BadgeState::Unknown;
             let ffmpeg_unknown = ffmpeg.badge == BadgeState::Unknown;
             if ytdlp_unknown && ffmpeg_unknown {
-                app.set_upd_msg("Não foi possível verificar (sem internet ou erro)".into());
+                app.set_upd_msg("Could not check versions (no internet connection or error)".into());
             } else if ytdlp_ok && ffmpeg_ok {
-                app.set_upd_msg("Atualizados".into());
+                app.set_upd_msg("All tools are up to date".into());
             } else {
                 let mut parts = Vec::new();
                 if ytdlp.badge == BadgeState::UpdateAvailable || ytdlp.badge == BadgeState::NotInstalled {
-                    parts.push("yt-dlp: desatualizado");
+                    parts.push("yt-dlp: update available");
                 }
                 if ffmpeg.badge == BadgeState::UpdateAvailable || ffmpeg.badge == BadgeState::NotInstalled {
-                    parts.push("FFmpeg: desatualizado");
+                    parts.push("FFmpeg: update available");
                 }
                 app.set_upd_msg(parts.join(", ").into());
             }
@@ -234,7 +231,7 @@ fn apply_event(
         UiEvent::UpdateFinished { results } => {
             app.set_upd_busy(false);
             app.set_upd_percent(100.0);
-            app.set_upd_msg("Atualização concluída.".into());
+            app.set_upd_msg("Update completed.".into());
             app.set_upd_summary(fmt_update_summary(&results));
         }
     }
@@ -245,13 +242,13 @@ fn main() -> anyhow::Result<()> {
     app.set_log_lines(Rc::new(VecModel::from(Vec::<SharedString>::new())).into());
     app.set_resolutions(Rc::new(VecModel::from(Vec::<SharedString>::new())).into());
 
-    // Estado Rust (nunca tocado direto por workers; so via canal).
+    // Rust state (never touched directly by workers; only via channel).
     let (tx, rx) = mpsc::channel::<UiEvent>();
     let video: Arc<Mutex<Option<probe::VideoInfo>>> = Arc::new(Mutex::new(None));
     let cancel_slot: Arc<Mutex<Arc<AtomicBool>>> =
         Arc::new(Mutex::new(Arc::new(AtomicBool::new(false))));
 
-    // ---- DISPATCHER: recebe UiEvents e aplica via event loop ----
+    // ---- DISPATCHER: receives UiEvents and applies via event loop ----
     {
         let weak = app.as_weak();
         let video = video.clone();
@@ -272,12 +269,12 @@ fn main() -> anyhow::Result<()> {
         app.on_analyze(move || {
             let Some(ui) = weak.upgrade() else { return };
             if ui.get_dl_state() == "analyzing" {
-                return; // ignora cliques repetidos durante a analise em curso
+                return; // ignore repeated clicks while analysis is in progress
             }
             let url = ui.get_url().trim().to_string();
             if url.is_empty() {
                 ui.set_dl_state("error".into());
-                ui.set_dl_error("Informe a URL do vídeo.".into());
+                ui.set_dl_error("Please enter a video URL.".into());
                 return;
             }
             ui.set_dl_state("analyzing".into());
@@ -285,7 +282,7 @@ fn main() -> anyhow::Result<()> {
             ui.set_dl_final("".into());
             ui.set_dl_percent(0.0);
             ui.set_analysis_ok(false);
-            ui.set_video_title("Analisando…".into());
+            ui.set_video_title("Analyzing…".into());
             ui.set_duration("".into());
             *video.lock().unwrap() = None;
 
@@ -295,10 +292,10 @@ fn main() -> anyhow::Result<()> {
                     Ok(t) => t,
                     Err(e) => {
                         let _ = txw.send(UiEvent::LogLine(format!(
-                            "yt-dlp/ffmpeg não encontrados: {e:#}"
+                            "yt-dlp/ffmpeg not found: {e:#}"
                         )));
                         let _ = txw.send(UiEvent::ProbeError(
-                            "yt-dlp ou ffmpeg não encontrado. Abra a aba Atualizar para instalar."
+                            "yt-dlp or ffmpeg not found. Open Update screen to install."
                                 .into(),
                         ));
                         return;
@@ -319,9 +316,9 @@ fn main() -> anyhow::Result<()> {
                         }
                     }
                     Err(e) => {
-                        let _ = txw.send(UiEvent::LogLine(format!("Falha na análise: {e:#}")));
+                        let _ = txw.send(UiEvent::LogLine(format!("Analysis failed: {e:#}")));
                         let _ = txw.send(UiEvent::ProbeError(format!(
-                            "Não foi possível analisar o vídeo: {e:#}"
+                            "Could not analyze video: {e:#}"
                         )));
                     }
                 }
@@ -335,7 +332,7 @@ fn main() -> anyhow::Result<()> {
         app.on_pick_folder(move || {
             let Some(ui) = weak.upgrade() else { return };
             if let Some(dir) = rfd::FileDialog::new()
-                .set_title("Escolher pasta de destino")
+                .set_title("Select Destination Folder")
                 .pick_folder()
             {
                 ui.set_output_dir(dir.to_string_lossy().into_owned().into());
@@ -351,41 +348,38 @@ fn main() -> anyhow::Result<()> {
         let cancel_slot = cancel_slot.clone();
         app.on_start_download(move || {
             let Some(ui) = weak.upgrade() else { return };
-            // Item 1: erro de validacao mostra so a mensagem (nao destroi `ready`);
-            // o botao Baixar reage via binding can-download e o erro some via
-            // handlers `changed` no .slint ao corrigir as opcoes.
             let fail = |ui: &AppWindow, msg: &str| {
                 ui.set_dl_error(msg.into());
             };
 
             let url = ui.get_url().trim().to_string();
             if url.is_empty() {
-                fail(&ui, "Informe a URL do vídeo.");
+                fail(&ui, "Please enter a video URL.");
                 return;
             }
             let info = match video.lock().unwrap().clone() {
                 Some(i) => i,
                 None => {
-                    fail(&ui, "Clique em Analisar antes de baixar.");
+                    fail(&ui, "Click Analyze before downloading.");
                     return;
                 }
             };
             let idx = ui.get_resolution_index() as usize;
             let Some(res) = info.resolutions.get(idx) else {
-                fail(&ui, "Escolha uma resolução válida.");
+                fail(&ui, "Select a valid resolution.");
                 return;
             };
             let height = res.height;
             let out = ui.get_output_dir().trim().to_string();
             if out.is_empty() {
-                fail(&ui, "Escolha a pasta de destino.");
+                fail(&ui, "Select a destination folder.");
                 return;
             }
             let mode = if ui.get_mode() == 1 {
                 let s = ui.get_start_t().trim().to_string();
                 let e = ui.get_end_t().trim().to_string();
                 if s.is_empty() || e.is_empty() {
-                    fail(&ui, "Informe início e fim do trecho (HH:MM:SS).");
+                    fail(&ui, "Enter start and end timestamps (HH:MM:SS).");
                     return;
                 }
                 VideoMode::Clip { start: s, end: e }
@@ -406,7 +400,6 @@ fn main() -> anyhow::Result<()> {
                 video_title: info.title.clone(),
             };
 
-            // Cancel novo para este download.
             let cancel = Arc::new(AtomicBool::new(false));
             *cancel_slot.lock().unwrap() = cancel.clone();
 
@@ -421,10 +414,10 @@ fn main() -> anyhow::Result<()> {
                     Ok(t) => t,
                     Err(e) => {
                         let _ = txw.send(UiEvent::LogLine(format!(
-                            "yt-dlp/ffmpeg não encontrados: {e:#}"
+                            "yt-dlp/ffmpeg not found: {e:#}"
                         )));
                         let _ = txw.send(UiEvent::DownloadError(
-                            "yt-dlp ou ffmpeg não encontrado. Abra a aba Atualizar para instalar."
+                            "yt-dlp or ffmpeg not found. Open Update screen to install."
                                 .into(),
                         ));
                         return;
@@ -437,13 +430,13 @@ fn main() -> anyhow::Result<()> {
                         ));
                     }
                     Err(e) => {
-                        let _ = txw.send(UiEvent::LogLine(format!("Falha no download: {e:#}")));
+                        let _ = txw.send(UiEvent::LogLine(format!("Download failed: {e:#}")));
                         if cancel.load(Ordering::SeqCst) {
                             let _ = txw
-                                .send(UiEvent::DownloadError("Download cancelado.".into()));
+                                .send(UiEvent::DownloadError("Download cancelled.".into()));
                         } else {
                             let _ = txw.send(UiEvent::DownloadError(format!(
-                                "Falha no download: {e:#}"
+                                "Download failed: {e:#}"
                             )));
                         }
                     }
@@ -458,7 +451,7 @@ fn main() -> anyhow::Result<()> {
         let cancel_slot = cancel_slot.clone();
         app.on_cancel_download(move || {
             cancel_slot.lock().unwrap().store(true, Ordering::SeqCst);
-            let _ = tx.send(UiEvent::LogLine("Cancelamento solicitado…".into()));
+            let _ = tx.send(UiEvent::LogLine("Cancellation requested…".into()));
         });
     }
 
@@ -475,7 +468,7 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // ---- on_new_download: reseta para idle ----
+    // ---- on_new_download: resets to idle ----
     {
         let weak = app.as_weak();
         let video = video.clone();
@@ -496,7 +489,7 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // ---- on_view_log: toggle do painel de log in-app (item 2) ----
+    // ---- on_view_log: toggle in-app log panel ----
     {
         let weak = app.as_weak();
         app.on_view_log(move || {
@@ -512,7 +505,7 @@ fn main() -> anyhow::Result<()> {
         app.on_check_updates(move || {
             if let Some(ui) = weak.upgrade() {
                 ui.set_upd_busy(true);
-                ui.set_upd_msg("Verificando...".into());
+                ui.set_upd_msg("Checking...".into());
                 ui.set_upd_summary("".into());
             }
             let txw = tx.clone();
@@ -522,7 +515,7 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // ---- on_run_update(mask: 1 yt-dlp, 2 ffmpeg, 3 ambos) ----
+    // ---- on_run_update(mask: 1 yt-dlp, 2 ffmpeg, 3 both) ----
     {
         let tx = tx.clone();
         let weak = app.as_weak();
@@ -535,7 +528,7 @@ fn main() -> anyhow::Result<()> {
             if let Some(ui) = weak.upgrade() {
                 ui.set_upd_busy(true);
                 ui.set_upd_percent(0.0);
-                ui.set_upd_msg("Iniciando atualização…".into());
+                ui.set_upd_msg("Starting update…".into());
                 ui.set_upd_summary("".into());
             }
             let txw = tx.clone();
@@ -550,11 +543,10 @@ fn main() -> anyhow::Result<()> {
                     },
                     Err(e) => targets
                         .iter()
-                        .map(|t| (*t, false, format!("pasta bin: {e:#}")))
+                        .map(|t| (*t, false, format!("bin directory: {e:#}")))
                         .collect(),
                 };
                 let _ = txw.send(UiEvent::UpdateFinished { results });
-                // Re-check de status apos o update.
                 check_updates_and_emit(&txw);
             });
         });
@@ -581,13 +573,13 @@ fn main() -> anyhow::Result<()> {
                         let _ = fs::remove_dir_all(&bin_dir);
                         let _ = fs::create_dir_all(&bin_dir);
                         ui.set_delete_confirm(false);
-                        ui.set_upd_msg("Binários excluídos. Verificando versões...".into());
+                        ui.set_upd_msg("Binaries deleted. Checking versions...".into());
                         ui.set_upd_summary("".into());
                         let txw = tx.clone();
                         std::thread::spawn(move || check_updates_and_emit(&txw));
                     }
                     Err(e) => {
-                        ui.set_upd_msg(format!("Erro ao acessar pasta bin: {e}").into());
+                        ui.set_upd_msg(format!("Error accessing bin folder: {e}").into());
                         ui.set_delete_confirm(false);
                     }
                 }
@@ -595,18 +587,18 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // ---- BOOT: checagem automatica de versoes em background ----
+    // ---- BOOT: automatic background version check ----
     {
-        app.set_upd_msg("Verificando versões em segundo plano…".into());
+        app.set_upd_msg("Checking versions in background…".into());
         let txb = tx.clone();
         std::thread::spawn(move || check_updates_and_emit(&txb));
     }
 
-    // ---- BOOT (item 5): sem binarios, abre direto na tela de atualizar ----
+    // ---- BOOT: if binaries are missing, open directly on Update screen ----
     if tools::locate().is_err() {
         app.set_screen(1);
         app.set_missing_tools_msg(
-            "yt-dlp ou ffmpeg não encontrado. Instale os binários abaixo para começar a baixar."
+            "yt-dlp or ffmpeg not found. Install binaries below to begin downloading."
                 .into(),
         );
     }

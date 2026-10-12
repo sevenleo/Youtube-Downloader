@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.6.0] - 2026-10-12
+-c Translate project to English
+
+- Translate all documentation (docs/README.md) to English.
+- Translate desktop GUI (app/src/ui.slint) and Windows scripts (download.bat, update.bat) to English.
+- Translate backend code comments, docstrings, error messages, and log markers (START, FINISHED, RESOLVED_FORMAT).
+- Update download.log contract across Rust core and end-to-end tests.
+
 ## [0.5.0] - 2026-10-12
 -c Update screen improvements
 

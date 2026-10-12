@@ -1,26 +1,25 @@
-//! Spawn de processos SEM janela de console e captura de saida.
-//! DONO DESTE ARQUIVO: agente core-download. Ver plano: process.rs.
+//! Process spawning WITHOUT console window and output streaming/capture.
 
 use std::io;
 use std::path::Path;
 use std::sync::atomic::AtomicBool;
 
-/// Origem de uma linha capturada.
+/// Origin stream of a captured line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProcStream {
     Stdout,
     Stderr,
 }
 
-/// Uma linha de saida do processo (ja decodificada com UTF-8 lossy).
+/// A line of process output (decoded with UTF-8 lossy).
 #[derive(Clone, Debug)]
 pub struct ProcLine {
     pub stream: ProcStream,
     pub text: String,
 }
 
-/// Le um pipe ate EOF separando por `\n` (NAO quebra por `\r`, pois o yt-dlp
-/// e chamado com `--newline`) e envia cada linha decodificada com UTF-8 lossy.
+/// Reads a pipe until EOF separated by `\n` (does NOT split on `\r`, as yt-dlp
+/// is executed with `--newline`) and sends each decoded line.
 fn spawn_reader(
     pipe: impl std::io::Read + Send + 'static,
     stream: ProcStream,
@@ -49,16 +48,16 @@ fn spawn_reader(
             }
             let text = String::from_utf8_lossy(&buf).into_owned();
             if tx.send(ProcLine { stream, text }).is_err() {
-                break; // receptor foi embora
+                break; // receiver was dropped
             }
         }
     })
 }
 
-/// Executa `program` com `args` (SEM shell, SEM console) consumindo stdout+stderr
-/// linha a linha e chamando `sink` para cada uma (mesma ordem temporal aproximada;
-/// equivale ao `2>&1` dos .bat). Se `cancel` virar true, mata o processo.
-/// Retorna o codigo de saida. Nao quebra linhas por `\r` (usar `--newline` no yt-dlp).
+/// Runs `program` with `args` (NO shell, NO console window) consuming stdout+stderr
+/// line by line and invoking `sink` for each (approximate temporal order; equivalent
+/// to `2>&1` in .bat). If `cancel` becomes true, terminates the process.
+/// Returns exit code. Does not break on `\r` (use `--newline` on yt-dlp).
 pub fn run_streamed(
     program: &Path,
     args: &[String],
@@ -76,7 +75,7 @@ pub fn run_streamed(
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW: sem console preto
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW: prevents black console popup
         .spawn()?;
 
     let (tx, rx) = mpsc::channel::<ProcLine>();
@@ -90,14 +89,14 @@ pub fn run_streamed(
     drop(tx);
 
     loop {
-        // Drena o que as threads leitoras ja capturaram (ordem temporal aproximada).
+        // Drain lines buffered by reader threads (approximate temporal order).
         for line in rx.try_iter() {
             sink(line);
         }
         match child.try_wait()? {
             Some(status) => {
-                // Processo terminou: espera as leitoras (EOF apos o filho sair)
-                // e drena o restante para nao perder nenhuma linha.
+                // Process finished: wait for reader threads (EOF after child exits)
+                // and drain remainder so no output lines are lost.
                 for h in handles {
                     let _ = h.join();
                 }
@@ -124,7 +123,7 @@ pub fn run_streamed(
     }
 }
 
-/// Captura a saida completa (stdout) de um comando rapido (ex.: `yt-dlp --version`).
+/// Captures full stdout output of a quick command (e.g. `yt-dlp --version`).
 pub fn run_capture_stdout(program: &Path, args: &[String]) -> io::Result<String> {
     use std::os::windows::process::CommandExt;
     use std::process::{Command, Stdio};
@@ -134,7 +133,7 @@ pub fn run_capture_stdout(program: &Path, args: &[String]) -> io::Result<String>
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::null())
-        .creation_flags(0x08000000) // CREATE_NO_WINDOW: sem console preto
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW: prevents black console popup
         .output()?;
     Ok(String::from_utf8_lossy(&out.stdout).into_owned())
 }

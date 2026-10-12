@@ -1,6 +1,6 @@
-//! Teste ponta a ponta HEADLESS do fluxo completo (sem GUI).
-//! Roda apenas sob demanda: `cargo test -- --ignored`.
-//! Baixa um video real (Big Buck Bunny, 144p), corta um trecho de 5s e gera MP4.
+//! End-to-end HEADLESS test for the full workflow (no GUI).
+//! Runs on-demand only: `cargo test -- --ignored`.
+//! Downloads a real video (Big Buck Bunny, 144p), cuts a 5s clip and outputs MP4.
 
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
@@ -24,14 +24,14 @@ fn e2e_clip_144p_mp4() {
         .join("bin");
     let ytdlp = repo_bin.join("yt-dlp.exe");
     let ffmpeg = repo_bin.join("ffmpeg.exe");
-    assert!(ytdlp.exists(), "bin/yt-dlp.exe nao encontrado");
-    assert!(ffmpeg.exists(), "bin/ffmpeg.exe nao encontrado");
+    assert!(ytdlp.exists(), "bin/yt-dlp.exe not found");
+    assert!(ffmpeg.exists(), "bin/ffmpeg.exe not found");
 
     let out = std::env::temp_dir().join(format!("yt-e2e-{}", nanos()));
     std::fs::create_dir_all(&out).unwrap();
 
     let (tx, rx) = mpsc::channel::<UiEvent>();
-    // Drena eventos para o sender nunca bloquear (canal e unbounded, mas evita acumulo).
+    // Drains events so sender never blocks.
     std::thread::spawn(move || {
         let mut progresses = 0;
         while let Ok(ev) = rx.recv() {
@@ -57,23 +57,23 @@ fn e2e_clip_144p_mp4() {
     let cancel = AtomicBool::new(false);
 
     let final_path =
-        crate::download::run_download(&tools, &params, &tx, &cancel).expect("run_download falhou");
-    assert!(final_path.exists(), "arquivo final nao existe");
+        crate::download::run_download(&tools, &params, &tx, &cancel).expect("run_download failed");
+    assert!(final_path.exists(), "final file does not exist");
     assert_eq!(
         final_path.extension().and_then(|e| e.to_str()),
         Some("mp4")
     );
 
-    let log = std::fs::read_to_string(out.join("download.log")).expect("download.log ausente");
+    let log = std::fs::read_to_string(out.join("download.log")).expect("download.log missing");
     for needle in [
-        "INICIO:",
-        "TITULO:",
-        "RESOLUCAO: 144p",
-        "FORMATO: mp4",
-        "FORMATO_RESOLVIDO:",
-        "FINALIZADO:",
+        "START:",
+        "TITLE:",
+        "RESOLUTION: 144p",
+        "FORMAT: mp4",
+        "RESOLVED_FORMAT:",
+        "FINISHED:",
     ] {
-        assert!(log.contains(needle), "log sem {needle:?}");
+        assert!(log.contains(needle), "log missing {needle:?}");
     }
 
     std::fs::remove_dir_all(&out).ok();

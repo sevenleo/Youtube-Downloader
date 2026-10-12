@@ -1,5 +1,5 @@
-//! Escrita do download.log (mesmo conteudo do .bat). Ver plano.
-//! DONO DESTE ARQUIVO: agente core-download.
+//! Writing download.log (same content as the .bat script).
+//! Core download logging module.
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -9,18 +9,18 @@ use std::path::{Path, PathBuf};
 
 const DIVIDER: &str = "==================================================";
 
-fn now_br() -> String {
+fn now_timestamp() -> String {
     Local::now().format("%d/%m/%Y %H:%M:%S").to_string()
 }
 
-/// Log de um download. Criado (truncate) na pasta de destino.
+/// Download log tracker. Created (truncated) in the destination folder.
 pub struct DownloadLog {
     path: PathBuf,
 }
 
 impl DownloadLog {
-    /// Cria/trunca `download.log` na pasta de destino e escreve o cabecalho
-    /// ("===...=", "INICIO: dd/mm/aaaa hh:mm:ss"). Falha = pasta invalida/sem permissao.
+    /// Creates/truncates `download.log` in destination folder and writes the header
+    /// ("===...=", "START: dd/mm/yyyy hh:mm:ss"). Failure = invalid/unwritable folder.
     pub fn create(output_dir: &Path) -> Result<Self> {
         let path = output_dir.join("download.log");
         let mut f = OpenOptions::new()
@@ -28,36 +28,36 @@ impl DownloadLog {
             .create(true)
             .truncate(true)
             .open(&path)
-            .with_context(|| format!("nao foi possivel criar {}", path.display()))?;
+            .with_context(|| format!("could not create {}", path.display()))?;
         writeln!(f, "{DIVIDER}")?;
-        writeln!(f, "INICIO: {}", now_br())?;
+        writeln!(f, "START: {}", now_timestamp())?;
         writeln!(f, "{DIVIDER}")?;
         f.flush()?;
         Ok(Self { path })
     }
 
-    /// Acrescenta uma linha (UTF-8 sem BOM).
+    /// Appends a line (UTF-8 without BOM).
     pub fn line(&mut self, text: &str) -> Result<()> {
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)
             .append(true)
             .open(&self.path)
-            .with_context(|| format!("nao foi possivel escrever em {}", self.path.display()))?;
+            .with_context(|| format!("could not write to {}", self.path.display()))?;
         writeln!(f, "{text}")?;
         f.flush()?;
         Ok(())
     }
 
-    /// Linha final "FINALIZADO: dd/mm/aaaa hh:mm:ss" + divisor; fecha o log.
+    /// Final line "FINISHED: dd/mm/yyyy hh:mm:ss" + divider; closes the log.
     pub fn finish(&mut self) -> Result<()> {
         let mut f = OpenOptions::new()
             .write(true)
             .create(true)
             .append(true)
             .open(&self.path)
-            .with_context(|| format!("nao foi possivel finalizar {}", self.path.display()))?;
-        writeln!(f, "FINALIZADO: {}", now_br())?;
+            .with_context(|| format!("could not finalize {}", self.path.display()))?;
+        writeln!(f, "FINISHED: {}", now_timestamp())?;
         writeln!(f, "{DIVIDER}")?;
         f.flush()?;
         Ok(())

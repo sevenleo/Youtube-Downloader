@@ -1,67 +1,67 @@
 # Downloader - yt-dlp + FFmpeg
 
-Script para Windows que automatiza o download de vídeos utilizando **yt-dlp** e **FFmpeg**.
+Windows automation script and desktop application for downloading videos using **yt-dlp** and **FFmpeg**.
 
-O programa permite escolher:
+The application allows configuring:
 
-* Pasta de destino dos arquivos finais
-* URL do vídeo
-* Formato de saída: **MKV ou MP4**
-* Resoluções H.264 realmente disponíveis, listadas por número e dimensão
-* Vídeo completo ou apenas um trecho
-* Horário inicial e final do trecho
-* Se a pasta de destino deve ser aberta após o download
-* Seleção alternativa de formatos quando a combinação preferida não está disponível
-* Log detalhado com os IDs dos formatos selecionados
+* Destination folder for final files
+* Video URL
+* Output format: **MKV or MP4**
+* Real available H.264 resolutions, listed by index and dimension
+* Full video or specific clip
+* Start and end timestamps for the clip
+* Automatic option to open destination folder after download
+* Fallback format selection when the preferred combination is unavailable
+* Detailed log recording selected format IDs (`RESOLVED_FORMAT`)
 
-O processo foi desenvolvido para priorizar **confiabilidade do download e sincronização entre áudio e vídeo**, mantendo o vídeo sem recodificação sempre que possível.
+The workflow is engineered to prioritize **download reliability and audio/video synchronization**, preserving original streams without re-encoding whenever possible.
 
 ---
 
-## Requisitos
+## Requirements
 
-Os executáveis ficam na pasta `bin/`, que o `download.bat` adiciona automaticamente ao início do `PATH`, com prioridade sobre instalações do sistema:
+Binaries reside in the `bin/` folder, which `download.bat` automatically prepends to `PATH`, giving them priority over system-wide installations:
 
 * `bin\yt-dlp.exe`
-* `bin\ffmpeg.exe` (o pacote também inclui `ffplay.exe` e `ffprobe.exe`)
+* `bin\ffmpeg.exe` (the package also includes `ffplay.exe` and `ffprobe.exe`)
 
-### Onde baixar os binários
+### Where to Download Binaries
 
-Caso queira baixar os binários manualmente:
+If you prefer to download the binaries manually:
 
-* **yt-dlp**: [GitHub Releases (Oficial)](https://github.com/yt-dlp/yt-dlp/releases/latest) — baixe o executável `yt-dlp.exe`.
-* **FFmpeg**: [BtbN FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) ou [Gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (ambos recomendados em ffmpeg.org) — baixe a versão para Windows e extraia `ffmpeg.exe`, `ffprobe.exe` e `ffplay.exe` para a pasta `bin/`.
+* **yt-dlp**: [GitHub Releases (Official)](https://github.com/yt-dlp/yt-dlp/releases/latest) — download `yt-dlp.exe`.
+* **FFmpeg**: [BtbN FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds/releases) or [Gyan.dev](https://www.gyan.dev/ffmpeg/builds/) (both recommended on ffmpeg.org) — download the Windows release and extract `ffmpeg.exe`, `ffprobe.exe`, and `ffplay.exe` into the `bin/` folder.
 
-Você também pode utilizar o `update.bat`, que compara versões e baixa as atualizações automaticamente para a pasta `bin/`.
+You can also use `update.bat` or the desktop GUI, which checks versions and downloads updates automatically into the `bin/` directory.
 
-Versões instaladas no sistema só são usadas como alternativa, quando presentes no `PATH`.
+System-installed versions are only used as a fallback when present in `PATH`.
 
-Para verificar o `yt-dlp`:
+To verify `yt-dlp`:
 
 ```text
 yt-dlp --version
 ```
 
-Para verificar o FFmpeg:
+To verify FFmpeg:
 
 ```text
 ffmpeg -version
 ```
 
-Para verificar de onde os executáveis estão sendo carregados:
+To verify binary resolution paths:
 
 ```text
 where yt-dlp
 where ffmpeg
 ```
 
-O script também utiliza o **PowerShell**, que normalmente já está disponível no Windows.
+The script also utilizes **PowerShell**, which is built into modern Windows versions.
 
 ---
 
-## Arquivos do projeto
+## Project Structure
 
-A estrutura recomendada é:
+The repository structure is organized as follows:
 
 ```text
 Downloader/
@@ -84,39 +84,39 @@ Downloader/
     └── sync.py
 ```
 
-O arquivo `download.log` é criado automaticamente na pasta de destino selecionada e não precisa existir previamente.
+The `download.log` file is generated automatically inside the selected destination folder and does not need to exist beforehand.
 
 ---
 
-## Interface gráfica (YoutubeDownloader.exe)
+## Graphical User Interface (YoutubeDownloader.exe)
 
-O `YoutubeDownloader.exe` é um aplicativo desktop (Rust + Slint) que faz exatamente a mesma coisa que os dois scripts, com interface visual em tema escuro. Não requer instalação nem Python: basta executá-lo ao lado da pasta `bin/`.
+`YoutubeDownloader.exe` is a native desktop application built with Rust and Slint that provides the functionality of both batch scripts in a modern dark-themed interface. It requires no installation or Python runtime: simply run the executable beside the `bin/` folder.
 
 ```text
 YoutubeDownloader.exe
 ```
 
-### Tela Download (equivale ao download.bat)
+### Download Screen (Equivalent to download.bat)
 
-* Campo de URL + botão **Analisar**: mostra título, duração, miniatura e as resoluções H.264 reais do vídeo
-* Formato **MKV ou MP4**, vídeo **completo ou trecho** (início/fim em `HH:MM:SS` ou `MM:SS`)
-* Seletor de pasta de destino, barra de progresso real, log ao vivo e botões **Cancelar**, **Abrir pasta** e **Novo download**
-* Gera o mesmo `download.log` do script, na pasta de destino
-* Botão **Ver log** abre/fecha o painel de log na própria tela
-* Botão **Atualizar binários** no topo direciona para a tela de atualização
+* URL input field + **Analyze** button: fetches and displays title, duration, thumbnail preview, and available H.264 resolutions
+* Format selection: **MKV or MP4**, content selection: **Full or Clip** (start/end timestamps in `HH:MM:SS` or `MM:SS`)
+* Destination folder picker, real-time download progress bar, live log console, and action buttons: **Cancel**, **Open folder**, and **New**
+* Generates the identical `download.log` file in the destination folder
+* **View log** / **Hide log** button toggles the live log console in-place
+* **Update binaries** button in the header navigates directly to the Update screen
 
-### Tela Atualizar (equivale ao update.bat)
+### Update Screen (Equivalent to update.bat)
 
-* Tabela com versão instalada, versão mais recente e status de cada binário (badges coloridos)
-* Botões **Atualizar yt-dlp**, **Atualizar FFmpeg**, **Atualizar tudo** — desativados automaticamente quando ambos já estão atualizados
-* Botão **Excluir binários** (vermelho) com confirmação em duas etapas para limpar a pasta `bin/`
-* Botão **Verificar atualizações** com feedback visual: "Verificando..." → "Atualizados" (verde) ou lista de desatualizados
-* Feedback textual colorido durante e após operações (azul durante, verde sucesso, vermelho erro)
-* Ao abrir o app, as versões são verificadas em segundo plano e um aviso aparece se houver atualização
-* Se a pasta `bin/` não existir, o app abre direto nesta tela e instala tudo sozinho
-* Botão **← Voltar** retorna à tela de download
+* Table displaying installed version, latest release version, and status badges for each binary
+* Action buttons: **Update yt-dlp**, **Update FFmpeg**, and **Update all** — automatically disabled when all binaries are up-to-date
+* **Delete binaries** button (red) with two-step confirmation to clean up the `bin/` directory
+* **Check for updates** button with dynamic status feedback: "Checking..." → "Up to date" (green) or lists outdated binaries
+* Color-coded feedback messages during and after operations (blue during check/update, green on success, red on error)
+* Background version check on application startup with an update notification banner if new releases are detected
+* Self-bootstrapping: if `bin/` is missing, the application automatically launches directly into this screen and downloads required tools
+* **← Back** button returns to the Download screen
 
-Para compilar a partir do código-fonte (`app/`), com a toolchain Rust instalada:
+To compile from source code (`app/`) with the Rust toolchain installed:
 
 ```text
 cd app
@@ -126,65 +126,65 @@ copy target\release\YoutubeDownloader.exe ..\
 
 ---
 
-## Atualizar os binários
+## Updating Binaries
 
-Execute:
+Run:
 
 ```text
 update.bat
 ```
 
-Antes de baixar qualquer coisa, o script compara as versões instaladas em `bin/` com as releases mais recentes das fontes oficiais e mostra na tela, para cada binário, a versão instalada, a mais recente e o status (atualizado ou com atualização disponível):
+Before downloading anything, the script compares versions installed in `bin/` against the latest releases from official sources and displays installed version, latest release, and status (up-to-date or update available) for each tool:
 
-* **yt-dlp** — `github.com/yt-dlp/yt-dlp` (alternativa: repositório oficial de nightly builds)
-* **FFmpeg** — `github.com/BtbN/FFmpeg-Builds` (alternativa: `gyan.dev`, ambos recomendados em ffmpeg.org)
+* **yt-dlp** — `github.com/yt-dlp/yt-dlp` (fallback: official nightly builds repository)
+* **FFmpeg** — `github.com/BtbN/FFmpeg-Builds` (fallback: `gyan.dev`, both recommended on ffmpeg.org)
 
-Depois da comparação, um menu permite escolher o que atualizar:
+After the version comparison, an interactive menu allows selecting what to update:
 
 ```text
-1 - Apenas yt-dlp
-2 - Apenas FFmpeg
-3 - Ambos
-0 - Sair sem atualizar
+1 - yt-dlp only
+2 - FFmpeg only
+3 - Both
+0 - Exit without updating
 ```
 
-Também é possível pular o menu informando a opção diretamente na linha de comando, útil para automação:
+You can also bypass the menu by passing the option argument directly on the command line:
 
 ```text
 update.bat 3
 ```
 
-As opções `0`, `1`, `2` e `3` têm o mesmo significado do menu. O script requer `curl` (já incluído no Windows 10/11) e PowerShell.
+Arguments `0`, `1`, `2`, and `3` map directly to the menu options. The script requires `curl` (included in Windows 10/11) and PowerShell.
 
 ---
 
-## Como executar
+## How to Run
 
-Execute:
+Run:
 
 ```text
 download.bat
 ```
 
-O script abrirá um seletor de pasta e, em seguida, fará as perguntas do download.
+The script displays a destination folder selection dialog and then prompts for download configuration.
 
-### 1. Escolha a pasta de destino
+### 1. Select Destination Folder
 
-Selecione a pasta onde o arquivo final e o `download.log` serão gravados. Os arquivos temporários continuam sendo criados em `%TEMP%` e são removidos ao concluir.
+Choose the folder where the downloaded video and `download.log` will be saved. Temporary files remain isolated in `%TEMP%` and are cleaned up on completion.
 
-### 2. Informe o link
+### 2. Enter Video URL
 
-Cole a URL do vídeo quando solicitado:
+Paste the video URL when prompted:
 
 ```text
-Link do video: https://www.youtube.com/watch?v=xxxxxxxxxxx
+Video URL: https://www.youtube.com/watch?v=xxxxxxxxxxx
 ```
 
-### 3. Escolha a resolução
+### 3. Select Resolution
 
-O script consulta as resoluções H.264 que realmente existem no vídeo e mostra cada uma com um número, altura e dimensão (por exemplo `4 - 480p - 854x480`). Digite somente o número da opção. O download prefere vídeo H.264 nessa resolução com áudio Opus; se essa combinação não estiver disponível, tenta outros formatos na mesma resolução, um arquivo único progressivo ou a resolução mais próxima abaixo. O codec pode variar nesses fallbacks. O log registra os IDs exatos dos formatos selecionados como `FORMATO_RESOLVIDO`.
+The script queries the H.264 streams actually present on YouTube and lists each by index, height, and dimensions (e.g. `4 - 480p - 854x480`). Enter the option number. The download prioritizes H.264 video at that resolution with Opus audio; if that combination is not available, it attempts fallbacks at the same resolution, a single progressive file, or the closest lower resolution. The format IDs are recorded in the log as `RESOLVED_FORMAT`.
 
-### 4. Escolha o formato
+### 4. Select Format
 
 ```text
 1 - MKV
@@ -193,61 +193,61 @@ O script consulta as resoluções H.264 que realmente existem no vídeo e mostra
 
 ### MKV
 
-Mantém os codecs dos streams baixados sem recodificá-los. A combinação preferida é:
+Preserves stream codecs without re-encoding. The preferred combination is:
 
 ```text
-Vídeo: H.264
-Áudio: Opus
+Video: H.264
+Audio: Opus
 ```
 
-Essa é a opção que preserva melhor os codecs originais e, consequentemente, a qualidade original do vídeo e do áudio.
+This option provides maximum fidelity by preserving the original downloaded streams.
 
 ### MP4
 
-O vídeo é mantido sem recodificação, desde que o codec selecionado seja compatível com MP4:
+Video is preserved without re-encoding as long as the selected codec is MP4-compatible:
 
 ```text
-Vídeo: codec selecionado, copiado sem recodificação
+Video: selected codec, copied without re-encoding
 ```
 
-O áudio é convertido para:
+Audio is converted to:
 
 ```text
-Áudio: AAC 320 kbps
+Audio: AAC 320 kbps
 ```
 
-Essa opção oferece maior compatibilidade com players, dispositivos e softwares que não trabalham bem com Opus dentro de MP4.
+This option provides maximum compatibility with players, mobile devices, and editing software that do not support Opus in MP4 containers.
 
 ---
 
-### 5. Escolha o conteúdo
+### 5. Select Content
 
 ```text
-1 - Video completo
-2 - Apenas um trecho
+1 - Full video
+2 - Clip only
 ```
 
-### Vídeo completo
+### Full Video
 
-O vídeo inteiro é baixado e convertido para o formato escolhido.
+The complete video is downloaded and packaged into the selected format.
 
-### Trecho
+### Clip Only
 
-O script solicitará:
+The script prompts for timestamps:
 
 ```text
-Inicio do trecho (HH:MM:SS ou MM:SS):
-Final do trecho (HH:MM:SS ou MM:SS):
+Clip start (HH:MM:SS or MM:SS):
+Clip end (HH:MM:SS or MM:SS):
 ```
 
-Exemplo:
+Example:
 
 ```text
-Inicio do trecho: 00:03:01
-Final do trecho: 00:04:50
+Clip start: 00:03:01
+Clip end: 00:04:50
 ```
 
-Também é possível usar:
+Shorthand formats are also accepted:
 
 ```text
 03:01
@@ -256,67 +256,67 @@ Também é possível usar:
 
 ---
 
-# Funcionamento interno
+# Internal Pipeline
 
-O script não baixa diretamente apenas o trecho solicitado.
+The script does not download isolated clip segments directly from YouTube servers.
 
-Para reduzir problemas de sincronização e de falhas durante o download dos streams separados, o script normaliza o arquivo intermediário para MKV por mesclagem ou remux, sem recodificar os streams. Depois utiliza o seguinte processo:
+To prevent audio/video desynchronization and connection failures during separated stream downloads, the workflow normalizes intermediate data to an MKV container via merging or remuxing without re-encoding, following this pipeline:
 
 ```text
                  YouTube
                     │
                     ▼
-          yt-dlp baixa o vídeo
+          yt-dlp downloads video
                     │
                     ▼
-      Streams selecionados
-      (preferência H.264 + Opus)
+             Selected streams
+        (preference: H.264 + Opus)
                     │
                     ▼
-              source.mkv
+               source.mkv
                     │
            ┌────────┴────────┐
            │                 │
-      Vídeo completo      Trecho
+      Full video           Clip
            │                 │
-           │          FFmpeg faz o corte
+           │          FFmpeg trims clip
            │                 │
-           │           trecho.mkv
+           │             clip.mkv
            │                 │
            └────────┬────────┘
                     │
                     ▼
-             Formato escolhido
-               /            \
-             MKV             MP4
-              │               │
-               │       Vídeo compatível é copiado
-               │       Áudio → AAC 320 kbps
-              │               │
-              └───────┬───────┘
-                      ▼
-                Arquivo final
+             Selected format
+               /          \
+             MKV          MP4
+              │            │
+              │     Compatible video copied
+              │     Audio → AAC 320 kbps
+              │            │
+              └─────┬──────┘
+                    ▼
+                Final file
 ```
 
 ---
 
-# Download
+# Download Mechanism
 
-O `yt-dlp` é instruído a utilizar preferencialmente:
+`yt-dlp` is configured with the following stream preferences:
 
 ```text
-Vídeo: H.264 (avc1)
-Áudio: Opus
+Video: H.264 (avc1)
+Audio: Opus
 ```
 
-O comando utilizado pelo script também inclui mecanismos para aumentar a confiabilidade do download:
+The underlying invocation includes parameters to ensure maximum download reliability:
 
 ```text
 --force-ipv4
 --retries 20
 --fragment-retries 20
 --retry-sleep 2
---print "FORMATO_RESOLVIDO: %(format_id)s"
+--print "RESOLVED_FORMAT: %(format_id)s"
 --no-simulate
 --merge-output-format mkv
 --remux-video mkv
@@ -325,319 +325,273 @@ O comando utilizado pelo script também inclui mecanismos para aumentar a confia
 
 ### IPv4
 
-O `--force-ipv4` evita problemas relacionados a determinadas rotas IPv6 ou conexões com os servidores CDN do YouTube.
+`--force-ipv4` prevents routing issues with IPv6 network interfaces and YouTube CDN edge nodes.
 
-### Tentativas
+### Retries
 
-Em caso de falha temporária durante o download, o `yt-dlp` tenta novamente.
+Transient network interruptions during segment downloads trigger automatic retries.
 
-O ID do formato escolhido é registrado em `FORMATO_RESOLVIDO`. `--no-simulate` garante que o download continue mesmo com essa opção de registro, e `--verbose` grava detalhes úteis para diagnosticar falhas.
+The resolved format ID is written to the log under `RESOLVED_FORMAT`. `--no-simulate` ensures the download executes when printing format information, and `--verbose` records diagnostic output.
 
 ---
 
-# Corte do vídeo
+# Video Trimming
 
-Quando um trecho é solicitado, o arquivo completo é baixado primeiro.
+When a clip is requested, the complete source video is downloaded first.
 
-Depois o FFmpeg realiza o corte localmente:
+FFmpeg then performs lossless local trimming:
 
 ```text
 source.mkv
-      ↓
-FFmpeg
-      ↓
-trecho.mkv
+     ↓
+  FFmpeg
+     ↓
+ clip.mkv
 ```
 
-O corte utiliza:
+Trimming uses:
 
 ```text
 -c copy
 ```
 
-Isso significa que o vídeo e o áudio não são recodificados durante o corte.
-
-Consequentemente, não há perda adicional de qualidade nessa etapa.
+Video and audio streams are copied directly at the container level without re-encoding, preserving exact original quality.
 
 ---
 
-# Conversão para MP4
+# MP4 Conversion
 
-Quando MP4 é selecionado, o script utiliza:
+When MP4 output is selected:
 
 ```text
-Vídeo → copy
-Áudio → AAC 320 kbps
+Video → copy
+Audio → AAC 320 kbps
 ```
 
-O vídeo H.264 não é recodificado.
-
-Somente o áudio Opus é convertido para AAC.
-
-Isso evita uma segunda geração de compressão no vídeo e mantém uma boa qualidade de áudio.
+The H.264 video stream is copied without re-encoding. Only the Opus audio stream is converted to high-bitrate AAC, preventing secondary compression artifacts in the video track.
 
 ---
 
-# Sincronização
+# Synchronization
 
-O objetivo principal do processo é evitar problemas de sincronização entre os streams de vídeo e áudio.
-
-Por isso, o script utiliza a seguinte estratégia:
+The core design prevents synchronization drift between separate audio and video streams using a sequential pipeline:
 
 ```text
-1. Baixar vídeo completo
-2. Baixar áudio completo
-3. Juntar os streams
-4. Cortar localmente
-5. Converter somente quando necessário
+1. Download complete video stream
+2. Download complete audio stream
+3. Multiplex streams into source container
+4. Perform local trimming if requested
+5. Convert audio stream only when required
 ```
 
-Esse método é mais confiável do que depender exclusivamente do download direto de pequenos segmentos dos streams.
+This strategy is significantly more reliable than directly fetching segmented HTTP byte ranges.
 
 ---
 
-# Arquivos temporários
+# Temporary Files
 
-Durante a execução é criada automaticamente uma pasta temporária dentro de `%TEMP%`.
+An isolated temporary directory is created inside `%TEMP%` for each run:
 
-Exemplo:
+Example:
 
 ```text
-C:\Users\Usuario\AppData\Local\Temp\yt-dlp-video-123456789
+C:\Users\User\AppData\Local\Temp\yt-dlp-video-123456789
 ```
 
-Normalmente ela contém:
+Standard working contents:
 
 ```text
 source.mkv
-trecho.mkv
+clip.mkv
 ```
 
-Após a conclusão, essa pasta é removida automaticamente. O arquivo final fica na pasta de destino selecionada.
+On completion, this directory is cleaned up automatically. The final output is written directly to the user-selected destination directory.
 
 ---
 
-# Nome dos arquivos
+# Output File Naming
 
-O nome do arquivo final é baseado automaticamente no título do vídeo.
+File names are generated automatically from the sanitized video title:
 
-### Trecho
+### Clip
 
-Exemplo:
-
-```text
-SAMU LINO DÁ SHOW E MENGÃO VENCE O CLÁSSICO COM GOLAÇOS FLAMENGO 3X0 BOTAFOGO - trecho 00-03-01-00-04-50.mp4
-```
-
-### Vídeo completo
-
-Exemplo:
+Example:
 
 ```text
-SAMU LINO DÁ SHOW E MENGÃO VENCE O CLÁSSICO COM GOLAÇOS FLAMENGO 3X0 BOTAFOGO - completo.mp4
+VIDEO TITLE HERE - clip 00-03-01-00-04-50.mp4
 ```
 
-Caracteres que não podem ser utilizados em nomes de arquivos do Windows são automaticamente substituídos.
+### Full Video
 
-O processamento do nome é realizado usando o PowerShell para evitar problemas com caracteres acentuados e caracteres especiais.
+Example:
+
+```text
+VIDEO TITLE HERE - full.mp4
+```
+
+Characters not permitted by the Windows file system are sanitized automatically via PowerShell to handle Unicode and accented characters reliably.
 
 ---
 
-# Logs
+# Logging
 
-O script cria automaticamente:
+Execution progress is logged automatically to:
 
 ```text
 download.log
 ```
 
-na pasta de destino selecionada.
+in the selected destination directory.
 
-O log registra:
+The log records:
 
-* Data e hora da execução
-* URL utilizada
-* Título do vídeo
-* Formato escolhido
-* Modo de download
-* Horários do trecho
-* Pasta temporária
-* IDs dos formatos selecionados e saída detalhada do `yt-dlp`
-* Saída do FFmpeg
-* Erros durante o processo
+* Execution start and end timestamps (`START:`, `FINISHED:`)
+* Target URL
+* Video title (`TITLE:`)
+* Chosen resolution (`RESOLUTION:`)
+* Output format (`FORMAT:`)
+* Temporary working directory (`TEMP_DIR:`)
+* Resolved yt-dlp format IDs (`RESOLVED_FORMAT:`)
+* Clip boundaries when applicable (`Clip:`)
+* Final output path (`FINAL:`)
+* yt-dlp and FFmpeg diagnostic logs and error traces
 
-Após um download bem-sucedido, o script pergunta se deve abrir a pasta de destino.
-
-O arquivo é especialmente útil para diagnosticar falhas.
-
-Em caso de problema, o conteúdo de `download.log` pode ser utilizado para identificar em qual etapa ocorreu o erro.
+If any stage fails, `download.log` provides diagnostic evidence to pinpoint the root cause.
 
 ---
 
-# Fluxo de saída
+# Output Stream Workflows
 
-## MKV + vídeo completo
+## MKV + Full Video
 
 ```text
 YouTube
 → H.264 + Opus
 → source.mkv
-→ arquivo final MKV
+→ final MKV file
 ```
 
-## MKV + trecho
+## MKV + Clip
 
 ```text
 YouTube
 → H.264 + Opus
 → source.mkv
-→ corte FFmpeg
-→ trecho.mkv
+→ FFmpeg trim
+→ clip.mkv
 ```
 
-## MP4 + vídeo completo
+## MP4 + Full Video
 
 ```text
 YouTube
 → H.264 + Opus
 → source.mkv
-→ H.264 permanece intacto
-→ Opus convertido para AAC 320 kbps
-→ arquivo MP4
+→ H.264 stream copied
+→ Opus converted to AAC 320 kbps
+→ final MP4 file
 ```
 
-## MP4 + trecho
+## MP4 + Clip
 
 ```text
 YouTube
 → H.264 + Opus
 → source.mkv
-→ corte FFmpeg
-→ H.264 permanece intacto
-→ Opus convertido para AAC 320 kbps
-→ arquivo MP4
+→ FFmpeg trim
+→ H.264 stream copied
+→ Opus converted to AAC 320 kbps
+→ final MP4 file
 ```
 
 ---
 
-# Qual formato escolher?
+# Format Selection Guide
 
-### Use MKV quando:
+### Choose MKV when:
 
-* qualidade original for prioridade;
-* você quiser manter Opus;
-* o player utilizado aceitar MKV;
-* não precisar de compatibilidade máxima.
+* Maximum quality and fidelity are paramount
+* You want to preserve the original Opus audio stream
+* Your media player supports MKV containers
+* Universal hardware compatibility is not required
 
-### Use MP4 quando:
+### Choose MP4 when:
 
-* compatibilidade for prioridade;
-* o arquivo será utilizado em celulares, TVs, navegadores ou softwares que preferem MP4;
-* você quiser H.264 + AAC;
-* não houver necessidade de preservar o áudio Opus original.
+* Broad compatibility across devices is needed (mobile phones, TVs, web browsers, video editing suites)
+* You require standard H.264 + AAC encoding
+* Preserving the Opus audio codec is unnecessary
 
 ---
 
-# Solução de problemas
+# Troubleshooting
 
-## O script não inicia
+## Script Does Not Start
 
-Verifique:
+Verify executable presence:
 
 ```text
 bin\yt-dlp.exe --version
-```
-
-e:
-
-```text
 bin\ffmpeg.exe -version
 ```
 
-Caso os arquivos não existam ou algum comando não seja reconhecido, execute `update.bat` para baixar os binários mais recentes na pasta `bin/`. O `download.bat` também consegue usar executáveis presentes no `PATH` do sistema.
+If binaries are missing, run `update.bat` to download the latest releases into `bin/`. `download.bat` can also fall back to executables present in the system `PATH`.
 
 ---
 
-## O FFmpeg encontrado é inesperado
+## Unexpected FFmpeg Binary Used
 
-Verifique:
+Check binary lookup resolution:
 
 ```text
 where ffmpeg
 ```
 
-O Windows pode encontrar mais de uma instalação.
-
-Exemplo:
-
-```text
-C:\Program Files\...\ffmpeg.exe
-```
-
-O `download.bat` prioriza sempre os executáveis da pasta `bin/`; instalações do sistema só são consideradas se a pasta estiver ausente.
-
-Também é possível verificar:
-
-```text
-ffmpeg -version
-```
+If multiple installations exist on your system, note that `download.bat` prioritizes binaries inside the local `bin/` directory over system `PATH`.
 
 ---
 
-## O download falha
+## Download Fails
 
-Consulte:
+Inspect:
 
 ```text
 download.log
 ```
 
-O log contém a saída completa do `yt-dlp` e normalmente permite identificar se o problema está relacionado à conexão, ao YouTube, ao formato selecionado ou a outro componente.
+The log contains the complete verbose output from `yt-dlp`, indicating whether failures are due to network connectivity, YouTube rate limiting, geo-restrictions, or format availability.
 
 ---
 
-## O vídeo possui caracteres estranhos no nome
+## Filenames with Special Characters
 
-O script utiliza o PowerShell para tratar os caracteres inválidos do Windows.
+The application uses PowerShell to sanitize invalid Windows file system characters while preserving Unicode titles, and configures the active console page to UTF-8 (`chcp 65001`).
 
-Além disso, o script inicia com:
+---
+
+# Technical Standards
+
+The application follows these engineering priorities:
 
 ```text
-chcp 65001
+1. Download reliability
+2. Audio and video synchronization
+3. Stream quality preservation
+4. Output compatibility
 ```
 
-para trabalhar com UTF-8 e reduzir problemas com caracteres acentuados.
+Video streams are copied without re-encoding whenever the target container allows. Audio is re-encoded to AAC at 320 kbps only when target container compatibility requires it.
 
 ---
 
-# Observações técnicas
+# License and Usage
 
-O script prioriza:
+This project is an automation utility leveraging `yt-dlp` and `FFmpeg`.
 
-```text
-1. Confiabilidade do download
-2. Sincronização de áudio e vídeo
-3. Preservação da qualidade
-4. Compatibilidade do arquivo
-```
+Users are responsible for ensuring that their downloads comply with:
 
-O vídeo selecionado é copiado sem recodificação quando o contêiner escolhido é compatível.
+* Applicable copyright laws and licenses
+* Content creator permissions
+* Local regulations
+* Platform terms of service
 
-Quando MP4 é escolhido, somente o áudio é recodificado para AAC 320 kbps.
-
-Quando MKV é escolhido, vídeo e áudio permanecem nos codecs originais sempre que estes estiverem disponíveis.
-
----
-
-# Licença e uso
-
-Este projeto é apenas uma ferramenta de automação utilizando `yt-dlp` e `FFmpeg`.
-
-O usuário é responsável por utilizar a ferramenta de acordo com:
-
-* direitos autorais aplicáveis;
-* permissões do conteúdo;
-* legislação local;
-* termos de serviço das plataformas utilizadas.
-
-Use o programa somente para conteúdos que você tenha autorização para baixar.
+Only use this tool to download media that you are authorized to access and store.

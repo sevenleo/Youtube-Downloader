@@ -1,4 +1,4 @@
-# Gera icon.ico (256x256 PNG embutido) + icon.png para o app.
+# Generates icon.ico (256x256 embedded PNG) + icon.png for the app.
 Add-Type -AssemblyName System.Drawing
 $size = 256
 $bmp = New-Object System.Drawing.Bitmap($size, $size)
@@ -28,7 +28,7 @@ $g.FillPolygon($wb, $pts)
 $g.Dispose()
 $pngPath = Join-Path $PSScriptRoot "icon.png"
 $bmp.Save($pngPath, [System.Drawing.Imaging.ImageFormat]::Png)
-# Embute o PNG num .ico (Vista+ aceita entries PNG)
+# Embeds PNG into an .ico file (Vista+ supports PNG entries)
 $png = [System.IO.File]::ReadAllBytes($pngPath)
 $icoPath = Join-Path $PSScriptRoot "icon.ico"
 $fs = [System.IO.File]::Create($icoPath)

@@ -1,10 +1,10 @@
-// Telas: screen 0 = menu/download, 1 = atualizar (sem TabWidget).
-// Contrato: nomes de propriedades/callbacks existentes mantidos; update_tab removida.
-// Slint 1.x - tema dark, estilo fluent, acento #7C5CFF (cores inalteradas).
+// Screens: screen 0 = menu/download, 1 = update (no TabWidget).
+// Contract: existing property/callback names preserved; update_tab removed.
+// Slint 1.x - dark theme, fluent style, accent #7C5CFF (colors unchanged).
 
 import { Button, LineEdit, ComboBox, ProgressIndicator, ScrollView, Palette } from "std-widgets.slint";
 
-// Card arredondado do tema dark (altura natural: nao estica com a janela).
+// Dark theme rounded card (natural height: does not stretch with window).
 component Card inherits Rectangle {
     background: #1d1d27;
     border-radius: 10px;
@@ -19,7 +19,7 @@ component Card inherits Rectangle {
     }
 }
 
-// Botao de alerta (vermelho) para acoes destrutivas.
+// Alert button (red) for destructive actions.
 component AlertButton inherits Rectangle {
     in property <string> text;
     in property <bool> enabled: true;
@@ -53,7 +53,7 @@ component AlertButton inherits Rectangle {
     }
 }
 
-// Botao primario com o acento #7C5CFF (o Button primary do fluent usa o azul padrao).
+// Primary button with #7C5CFF accent.
 component AccentButton inherits Rectangle {
     in property <string> text;
     in property <bool> enabled: true;
@@ -87,7 +87,7 @@ component AccentButton inherits Rectangle {
     }
 }
 
-// Controle segmentado compacto (Formato, Conteudo).
+// Compact segmented control (Format, Content).
 component Segmented inherits Rectangle {
     in property <[string]> options;
     in-out property <int> current: 0;
@@ -124,7 +124,7 @@ component Segmented inherits Rectangle {
     }
 }
 
-// Badge de status (0 verde, 1 amarelo, 2 vermelho, 3 cinza).
+// Status badge (0 green, 1 yellow, 2 red, 3 gray).
 component Badge inherits Rectangle {
     in property <int> kind;
     in property <string> label;
@@ -148,34 +148,34 @@ component Badge inherits Rectangle {
 }
 
 export component AppWindow inherits Window {
-    // ---- Navegacao ----
-    in-out property <int> screen: 0;         // 0 = menu/download, 1 = atualizar
-    in-out property <bool> show_log: false;  // log colapsavel (oculto por padrao)
+    // ---- Navigation ----
+    in-out property <int> screen: 0;         // 0 = menu/download, 1 = update
+    in-out property <bool> show_log: false;  // collapsible log (hidden by default)
     in property <string> missing_tools_msg: "";
     in property <bool> analysis_ok: false;
 
-    // ---- Download (tela inicial) ----
+    // ---- Download (main screen) ----
     in-out property <string> url: "";
     in-out property <string> output_dir: "";
     in-out property <int> resolution_index: 0;
     in property <[string]> resolutions: [];
     in property <string> video_title: "";
     in property <string> duration: "";
-    in property <image> thumbnail;          // placeholder ate a miniatura chegar
-    in-out property <int> mode: 0;          // 0 = completo, 1 = trecho
-    in-out property <string> start_t: "";   // HH:MM:SS ou MM:SS
+    in property <image> thumbnail;          // placeholder until thumbnail arrives
+    in-out property <int> mode: 0;          // 0 = full, 1 = clip
+    in-out property <string> start_t: "";   // HH:MM:SS or MM:SS
     in-out property <string> end_t: "";
     in-out property <int> container: 0;     // 0 = MKV, 1 = MP4
     in property <string> dl_state: "idle";  // idle|analyzing|ready|downloading|cutting|converting|finalizing|done|error
     in property <float> dl_percent: 0;      // 0..100
     in-out property <string> dl_error: "";
-    in property <string> dl_final: "";      // caminho do arquivo final (quando done)
+    in property <string> dl_final: "";      // final file path (when done)
     in property <[string]> log_lines: [];
 
-    // ---- Atualizar (tela de update) ----
+    // ---- Update (update screen) ----
     in property <string> ytdlp_installed: "-";
     in property <string> ytdlp_latest: "-";
-    in property <int> ytdlp_badge: 3;       // 0 ok, 1 update disponivel, 2 nao instalado, 3 desconhecido
+    in property <int> ytdlp_badge: 3;       // 0 ok, 1 update available, 2 not installed, 3 unknown
     in property <string> ffmpeg_installed: "-";
     in property <string> ffmpeg_latest: "-";
     in property <int> ffmpeg_badge: 3;
@@ -192,13 +192,13 @@ export component AppWindow inherits Window {
     callback cancel_download();
     callback open_folder();
     callback new_download();
-    callback view_log();      // toggle do painel de log in-app
+    callback view_log();      // toggle in-app log panel
     callback check_updates();
-    callback run_update(int); // bitmask: 1 yt-dlp, 2 ffmpeg, 3 ambos
+    callback run_update(int); // bitmask: 1 yt-dlp, 2 ffmpeg, 3 both
     callback confirm_delete();
     callback delete_binaries();
 
-    // Erro de validacao some sozinho ao corrigir as opcoes.
+    // Validation error clears automatically when options are modified.
     changed output_dir => { root.dl_error = ""; }
     changed mode => { root.dl_error = ""; }
     changed start_t => { root.dl_error = ""; }
@@ -212,15 +212,14 @@ export component AppWindow inherits Window {
     min-width: 720px;
     min-height: 700px;
 
-    // Helpers de estado (privados, fora do contrato).
+    // State helper properties.
     property <bool> is-busy: root.dl_state == "analyzing" || root.dl_state == "downloading" || root.dl_state == "cutting" || root.dl_state == "converting" || root.dl_state == "finalizing";
     property <bool> is-working: root.dl_state == "downloading" || root.dl_state == "cutting" || root.dl_state == "converting" || root.dl_state == "finalizing";
     property <bool> is-finished: root.dl_state == "done" || root.dl_state == "error";
     property <bool> can-analyze: root.url != "" && (root.dl_state == "idle" || root.dl_state == "ready" || root.dl_state == "done" || root.dl_state == "error");
-    // Botao Baixar reage as opcoes na hora (item 1): nao depende mais de dl_state.
     property <bool> can-download: root.analysis_ok && root.output_dir != "" && root.resolutions.length > 0 && (root.mode == 0 || (root.start_t != "" && root.end_t != ""));
     property <bool> update-available: root.ytdlp_badge == 1 || root.ytdlp_badge == 2 || root.ffmpeg_badge == 1 || root.ffmpeg_badge == 2;
-    property <string> stage-text: root.dl_state == "analyzing" ? "Analisando link…" : root.dl_state == "ready" ? "Pronto para baixar" : root.dl_state == "downloading" ? "Baixando…" : root.dl_state == "cutting" ? "Cortando trecho…" : root.dl_state == "converting" ? "Convertendo…" : root.dl_state == "finalizing" ? "Finalizando…" : root.dl_state == "done" ? "Concluído" : root.dl_state == "error" ? "Erro" : "Ocioso";
+    property <string> stage-text: root.dl_state == "analyzing" ? "Analyzing link…" : root.dl_state == "ready" ? "Ready to download" : root.dl_state == "downloading" ? "Downloading…" : root.dl_state == "cutting" ? "Cutting clip…" : root.dl_state == "converting" ? "Converting…" : root.dl_state == "finalizing" ? "Finalizing…" : root.dl_state == "done" ? "Completed" : root.dl_state == "error" ? "Error" : "Idle";
 
     init => {
         Palette.color-scheme = ColorScheme.dark;
@@ -230,20 +229,15 @@ export component AppWindow inherits Window {
         padding: 8px;
         spacing: 6px;
 
-        // ================= TELA INICIAL =================
-        // `if` remove a tela do layout de verdade. `visible` mantinha o espaco
-        // e empurrava a outra tela para fora (= tela preta). Ids internos
-        // (url-edit, res-combo) nao tem referencia externa: seguro.
+        // ================= MAIN SCREEN =================
         if root.screen == 0: VerticalLayout {
             spacing: 2px;
 
-            // (Sem ScrollView e sem header separado: tudo deve caber na janela;
-            // header fundido na linha de titulo do card URL.)
             Card {
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
-                        text: "Link do vídeo";
+                        text: "Video Link";
                         font-size: 13px;
                         font-weight: 600;
                         color: #c9cede;
@@ -252,11 +246,11 @@ export component AppWindow inherits Window {
                     }
                     Badge {
                         kind: 1;
-                        label: "Nova versão";
+                        label: "New version";
                         visible: root.update-available;
                     }
                     Button {
-                        text: "Atualizar binários";
+                        text: "Update binaries";
                         enabled: !root.is-busy;
                         clicked => { root.screen = 1; }
                     }
@@ -265,19 +259,19 @@ export component AppWindow inherits Window {
                     spacing: 8px;
                     url-edit := LineEdit {
                         text <=> root.url;
-                        placeholder-text: "Cole aqui a URL do YouTube…";
+                        placeholder-text: "Paste YouTube link here…";
                         enabled: !root.is-busy;
                         accepted => { root.analyze(); }
                     }
                     AccentButton {
-                        text: "Analisar";
+                        text: "Analyze";
                         enabled: root.can-analyze;
                         clicked => { root.analyze(); }
                     }
                 }
             }
 
-            // --- Video: thumbnail + titulo + duracao (SEMPRE visivel) ---
+            // --- Video: thumbnail + title + duration ---
             Card {
                 HorizontalLayout {
                     alignment: center;
@@ -300,7 +294,7 @@ export component AppWindow inherits Window {
                     }
                 }
                 Text {
-                    text: root.video_title == "" ? "Nenhum vídeo analisado ainda" : root.video_title;
+                    text: root.video_title == "" ? "No video analyzed yet" : root.video_title;
                     font-size: 15px;
                     font-weight: 700;
                     color: root.video_title == "" ? #8a8a95 : white;
@@ -310,19 +304,19 @@ export component AppWindow inherits Window {
                     overflow: clip;
                 }
                 Text {
-                    text: "Duração: " + (root.duration == "" ? "--:--:--" : root.duration);
+                    text: "Duration: " + (root.duration == "" ? "--:--:--" : root.duration);
                     font-size: 12px;
                     color: #9aa0b4;
                     horizontal-alignment: center;
                 }
             }
 
-            // --- Opcoes: qualidade, formato, conteudo/trecho, pasta ---
+            // --- Options: quality, format, content/clip, folder ---
             Card {
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
-                        text: "Qualidade:";
+                        text: "Quality:";
                         width: 80px;
                         vertical-alignment: center;
                         font-size: 13px;
@@ -338,7 +332,7 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
-                        text: "Formato:";
+                        text: "Format:";
                         width: 80px;
                         vertical-alignment: center;
                         font-size: 13px;
@@ -353,34 +347,34 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
-                        text: "Conteúdo:";
+                        text: "Content:";
                         width: 80px;
                         vertical-alignment: center;
                         font-size: 13px;
                         color: #c9cede;
                     }
                     Segmented {
-                        options: ["Completo", "Trecho"];
+                        options: ["Full", "Clip"];
                         current <=> root.mode;
                         enabled: !root.is-busy;
                     }
                     LineEdit {
                         text <=> root.start_t;
-                        placeholder-text: "Início";
+                        placeholder-text: "Start";
                         enabled: root.mode == 1 && !root.is-busy;
                         horizontal-stretch: 0;
                         min-width: 96px;
                         max-width: 96px;
                     }
                     Text {
-                        text: "até";
+                        text: "to";
                         vertical-alignment: center;
                         font-size: 12px;
                         color: #9aa0b4;
                     }
                     LineEdit {
                         text <=> root.end_t;
-                        placeholder-text: "Fim";
+                        placeholder-text: "End";
                         enabled: root.mode == 1 && !root.is-busy;
                         horizontal-stretch: 0;
                         min-width: 96px;
@@ -390,18 +384,18 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
-                        text: "Pasta:";
+                        text: "Folder:";
                         width: 80px;
                         vertical-alignment: center;
                         font-size: 13px;
                         color: #c9cede;
                     }
                     Button {
-                        text: "Escolher…";
+                        text: "Browse…";
                         clicked => { root.pick_folder(); }
                     }
                     Text {
-                        text: root.output_dir == "" ? "Nenhuma pasta escolhida" : root.output_dir;
+                        text: root.output_dir == "" ? "No folder selected" : root.output_dir;
                         horizontal-stretch: 1;
                         vertical-alignment: center;
                         font-size: 12px;
@@ -411,7 +405,7 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // --- Progresso + etapa ---
+            // --- Progress + stage ---
             Card {
                 HorizontalLayout {
                     spacing: 8px;
@@ -441,14 +435,14 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
                 if root.dl_state == "done" && root.dl_final != "": Text {
-                    text: "Arquivo: " + root.dl_final;
+                    text: "File: " + root.dl_final;
                     color: #7fd08a;
                     font-size: 12px;
                     wrap: word-wrap;
                 }
             }
 
-            // --- Log (abaixo do progresso, so quando visivel) ---
+            // --- Log (below progress, only when visible) ---
             if root.show_log: Card {
                 Text {
                     text: "Log";
@@ -472,36 +466,36 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // --- Acoes: secundarios a esquerda, Baixar a direita ---
+            // --- Actions: secondary on left, Download on right ---
             HorizontalLayout {
                 spacing: 8px;
                 Button {
-                    text: "Cancelar";
+                    text: "Cancel";
                     width: 104px; height: 30px;
                     enabled: root.is-working;
                     clicked => { root.cancel_download(); }
                 }
                 Button {
-                    text: "Abrir pasta";
+                    text: "Open folder";
                     width: 104px; height: 30px;
                     enabled: root.output_dir != "";
                     clicked => { root.open_folder(); }
                 }
                 Button {
-                    text: "Novo";
+                    text: "New";
                     width: 104px; height: 30px;
                     enabled: root.is-finished;
                     clicked => { root.new_download(); }
                 }
                 Button {
-                    text: root.show_log ? "Ocultar log" : "Ver log";
+                    text: root.show_log ? "Hide log" : "View log";
                     width: 104px; height: 30px;
                     enabled: root.log_lines.length > 0;
                     clicked => { root.view_log(); }
                 }
                 Rectangle { horizontal-stretch: 1; }
                 AccentButton {
-                    text: "Baixar";
+                    text: "Download";
                     min-width: 112px;
                     enabled: root.can-download && !root.is-busy;
                     clicked => { root.start_download(); }
@@ -509,19 +503,19 @@ export component AppWindow inherits Window {
             }
         }
 
-        // ================= TELA ATUALIZAR =================
+        // ================= UPDATE SCREEN =================
         if root.screen == 1: VerticalLayout {
             spacing: 10px;
 
-            // --- Header com voltar ---
+            // --- Header with back button ---
             HorizontalLayout {
                 spacing: 8px;
                 Button {
-                    text: "← Voltar";
+                    text: "← Back";
                     clicked => { root.screen = 0; }
                 }
                 Text {
-                    text: "Atualizar binários";
+                    text: "Update binaries";
                     font-size: 15px;
                     font-weight: 700;
                     color: white;
@@ -538,10 +532,10 @@ export component AppWindow inherits Window {
                 visible: root.missing_tools_msg != "";
             }
 
-            // --- Tabela de versoes ---
+            // --- Versions table ---
             Card {
                 Text {
-                    text: "Versões instaladas x disponíveis";
+                    text: "Installed vs Available Versions";
                     font-size: 13px;
                     font-weight: 600;
                     color: #c9cede;
@@ -550,9 +544,9 @@ export component AppWindow inherits Window {
                     spacing: 8px;
                     HorizontalLayout {
                         spacing: 8px;
-                        Text { text: "Componente"; width: 90px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
-                        Text { text: "Instalada"; width: 140px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
-                        Text { text: "Mais recente"; width: 140px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                        Text { text: "Component"; width: 90px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                        Text { text: "Installed"; width: 140px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                        Text { text: "Latest"; width: 140px; font-weight: 600; color: #9aa0b4; font-size: 12px; }
                         Text { text: "Status"; horizontal-stretch: 1; font-weight: 600; color: #9aa0b4; font-size: 12px; }
                     }
                     HorizontalLayout {
@@ -562,7 +556,7 @@ export component AppWindow inherits Window {
                         Text { text: root.ytdlp_latest; width: 140px; font-size: 12px; color: #c9cede; vertical-alignment: center; }
                         Badge {
                             kind: root.ytdlp_badge;
-                            label: root.ytdlp_badge == 0 ? "Atualizado" : root.ytdlp_badge == 1 ? "Atualização disponível" : root.ytdlp_badge == 2 ? "Não instalado" : "Desconhecido";
+                            label: root.ytdlp_badge == 0 ? "Up to date" : root.ytdlp_badge == 1 ? "Update available" : root.ytdlp_badge == 2 ? "Not installed" : "Unknown";
                         }
                     }
                     HorizontalLayout {
@@ -572,46 +566,46 @@ export component AppWindow inherits Window {
                         Text { text: root.ffmpeg_latest; width: 140px; font-size: 12px; color: #c9cede; vertical-alignment: center; }
                         Badge {
                             kind: root.ffmpeg_badge;
-                            label: root.ffmpeg_badge == 0 ? "Atualizado" : root.ffmpeg_badge == 1 ? "Atualização disponível" : root.ffmpeg_badge == 2 ? "Não instalado" : "Desconhecido";
+                            label: root.ffmpeg_badge == 0 ? "Up to date" : root.ffmpeg_badge == 1 ? "Update available" : root.ffmpeg_badge == 2 ? "Not installed" : "Unknown";
                         }
                     }
                 }
             }
 
-            // --- Acoes de update ---
+            // --- Update actions ---
             Card {
                 VerticalLayout {
                     spacing: 8px;
                     Button {
-                        text: "Atualizar yt-dlp";
+                        text: "Update yt-dlp";
                         width: 100%;
                         height: 36px;
                         enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(1); }
                     }
                     Button {
-                        text: "Atualizar FFmpeg";
+                        text: "Update FFmpeg";
                         width: 100%;
                         height: 36px;
                         enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(2); }
                     }
                     AccentButton {
-                        text: "Atualizar tudo";
+                        text: "Update all";
                         width: 100%;
                         height: 36px;
                         enabled: !root.upd_busy && !(root.ytdlp_badge == 0 && root.ffmpeg_badge == 0);
                         clicked => { root.run_update(3); }
                     }
                     AlertButton {
-                        text: "Excluir binários";
+                        text: "Delete binaries";
                         width: 100%;
                         height: 36px;
                         enabled: !root.upd_busy && (root.ytdlp_badge != 3 || root.ffmpeg_badge != 3);
                         clicked => { root.confirm_delete(); }
                     }
                     Button {
-                        text: root.upd_busy ? "Verificando..." : "Verificar atualizações";
+                        text: root.upd_busy ? "Checking..." : "Check for updates";
                         width: 100%;
                         height: 36px;
                         enabled: !root.upd_busy;
@@ -625,18 +619,18 @@ export component AppWindow inherits Window {
                     }
                     if root.delete_confirm: HorizontalLayout {
                         spacing: 8px;
-                        Text { text: "Confirmar exclusão dos binários?"; color: #ff6b61; }
-                        Button { text: "Confirmar"; clicked => { root.delete_binaries(); } }
-                        Button { text: "Cancelar"; clicked => { root.delete_confirm = false; } }
+                        Text { text: "Confirm deletion of binaries?"; color: #ff6b61; }
+                        Button { text: "Confirm"; clicked => { root.delete_binaries(); } }
+                        Button { text: "Cancel"; clicked => { root.delete_confirm = false; } }
                     }
                 }
             }
 
-            // --- Progresso + resumo ---
+            // --- Progress + summary ---
             Card {
                 vertical-stretch: 1;
                 Text {
-                    text: "Progresso";
+                    text: "Progress";
                     font-size: 13px;
                     font-weight: 600;
                     color: #c9cede;

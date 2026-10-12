@@ -9,7 +9,7 @@ set "PATH=%~dp0bin;%PATH%"
 
 set "DESTINATION_FILE=%TEMP%\yt_destination_%RANDOM%%RANDOM%.txt"
 
-powershell.exe -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='Selecione a pasta de destino'; $d.ShowNewFolderButton=$true; if($d.ShowDialog() -ne [Windows.Forms.DialogResult]::OK){exit 1}; [IO.File]::WriteAllText($env:DESTINATION_FILE,$d.SelectedPath,(New-Object Text.UTF8Encoding($false)))" >nul 2>&1
+powershell.exe -NoProfile -STA -Command "Add-Type -AssemblyName System.Windows.Forms; $d=New-Object System.Windows.Forms.FolderBrowserDialog; $d.Description='Select destination folder'; $d.ShowNewFolderButton=$true; if($d.ShowDialog() -ne [Windows.Forms.DialogResult]::OK){exit 1}; [IO.File]::WriteAllText($env:DESTINATION_FILE,$d.SelectedPath,(New-Object Text.UTF8Encoding($false)))" >nul 2>&1
 if errorlevel 1 goto ERROR_DESTINATION
 
 if not exist "%DESTINATION_FILE%" goto ERROR_DESTINATION
@@ -27,12 +27,12 @@ powershell.exe -NoProfile -Command "try { [IO.File]::WriteAllText($env:LOG,'') }
 if errorlevel 1 goto ERROR_DESTINATION
 
 echo ================================================== > "!LOG!"
-echo INICIO: %date% %time% >> "!LOG!"
+echo START: %date% %time% >> "!LOG!"
 echo ================================================== >> "!LOG!"
 
 echo.
 echo ==================================================
-echo          DOWNLOAD DE VIDEO - YT-DLP
+echo          VIDEO DOWNLOAD - YT-DLP
 echo ==================================================
 echo.
 
@@ -43,15 +43,15 @@ where ffmpeg >> "!LOG!" 2>&1
 if errorlevel 1 goto ERROR_FFMPEG
 
 set "URL="
-set /p "URL=Link do video: "
+set /p "URL=Video URL: "
 
 if not defined URL goto ERROR_URL
 
 echo URL: !URL! >> "!LOG!"
 
 echo.
-echo Obtendo titulo e resolucoes disponiveis...
-echo Obtendo titulo e resolucoes disponiveis... >> "!LOG!"
+echo Getting title and available resolutions...
+echo Getting title and available resolutions... >> "!LOG!"
 
 set "VIDEO_DATA_FILE=%TEMP%\yt_video_data_%RANDOM%%RANDOM%.json"
 set "TITLE_FILE=%TEMP%\yt_title_%RANDOM%%RANDOM%.txt"
@@ -77,8 +77,8 @@ del "%TITLE_FILE%" >nul 2>&1
 
 if not defined TITLE goto ERROR_TITLE
 
-echo Titulo: !TITLE!
-echo TITULO: !TITLE! >> "!LOG!"
+echo Title: !TITLE!
+echo TITLE: !TITLE! >> "!LOG!"
 
 set "SAFE_TITLE_FILE=%TEMP%\yt_safe_title_%RANDOM%%RANDOM%.txt"
 
@@ -94,12 +94,12 @@ del "%SAFE_TITLE_FILE%" >nul 2>&1
 
 if not defined SAFE_TITLE goto ERROR_SAFE_TITLE
 
-echo Nome seguro: !SAFE_TITLE!
+echo Safe name: !SAFE_TITLE!
 echo SAFE_TITLE: !SAFE_TITLE! >> "!LOG!"
 
 :ASK_RESOLUTION
 echo.
-echo Resolucoes H.264 disponiveis:
+echo Available H.264 resolutions:
 set "RESOLUTION_INDEX=0"
 for /f "usebackq tokens=1,2" %%A in ("%RESOLUTION_FILE%") do (
     set /a RESOLUTION_INDEX+=1
@@ -107,7 +107,7 @@ for /f "usebackq tokens=1,2" %%A in ("%RESOLUTION_FILE%") do (
 )
 
 set "RESOLUTION_OPTION="
-set /p "RESOLUTION_OPTION=Escolha o numero da resolucao [1-!RESOLUTION_INDEX!]: "
+set /p "RESOLUTION_OPTION=Choose resolution number [1-!RESOLUTION_INDEX!]: "
 
 set "RESOLUTION="
 set "RESOLUTION_INDEX=0"
@@ -118,30 +118,30 @@ for /f "usebackq tokens=1,2" %%A in ("%RESOLUTION_FILE%") do (
 
 if not defined RESOLUTION (
     echo.
-    echo Opcao invalida. Escolha um numero da lista.
-    echo OPCAO DE RESOLUCAO INVALIDA: !RESOLUTION_OPTION! >> "!LOG!"
+    echo Invalid option. Choose a number from the list.
+    echo INVALID RESOLUTION OPTION: !RESOLUTION_OPTION! >> "!LOG!"
     goto ASK_RESOLUTION
 )
 del "%RESOLUTION_FILE%" >nul 2>&1
 
-echo RESOLUCAO: !RESOLUTION!p >> "!LOG!"
+echo RESOLUTION: !RESOLUTION!p >> "!LOG!"
 
 :ASK_FORMAT
 echo.
-echo Escolha o formato de saida:
+echo Choose output format:
 echo.
 echo 1 - MKV
 echo 2 - MP4
 echo.
 
 set "FORMAT_OPTION="
-set /p "FORMAT_OPTION=Opcao [1-2]: "
+set /p "FORMAT_OPTION=Option [1-2]: "
 
 if "!FORMAT_OPTION!"=="1" goto FORMAT_MKV
 if "!FORMAT_OPTION!"=="2" goto FORMAT_MP4
 echo.
-echo Opcao invalida. Digite 1 ou 2.
-echo OPCAO DE FORMATO INVALIDA: !FORMAT_OPTION! >> "!LOG!"
+echo Invalid option. Enter 1 or 2.
+echo INVALID FORMAT OPTION: !FORMAT_OPTION! >> "!LOG!"
 goto ASK_FORMAT
 
 :FORMAT_MKV
@@ -154,24 +154,24 @@ goto FORMAT_DONE
 
 :FORMAT_DONE
 
-echo FORMATO: !FORMAT! >> "!LOG!"
+echo FORMAT: !FORMAT! >> "!LOG!"
 
 :ASK_CONTENT
 echo.
-echo Escolha o conteudo:
+echo Choose content:
 echo.
-echo 1 - Video completo
-echo 2 - Apenas um trecho
+echo 1 - Full video
+echo 2 - Clip only
 echo.
 
 set "CONTENT_OPTION="
-set /p "CONTENT_OPTION=Opcao [1-2]: "
+set /p "CONTENT_OPTION=Option [1-2]: "
 
 if "!CONTENT_OPTION!"=="1" goto MODE_FULL
 if "!CONTENT_OPTION!"=="2" goto MODE_CLIP
 echo.
-echo Opcao invalida. Digite 1 ou 2.
-echo OPCAO DE CONTEUDO INVALIDA: !CONTENT_OPTION! >> "!LOG!"
+echo Invalid option. Enter 1 or 2.
+echo INVALID CONTENT OPTION: !CONTENT_OPTION! >> "!LOG!"
 goto ASK_CONTENT
 
 :MODE_FULL
@@ -187,14 +187,14 @@ echo.
 set "START="
 set "END="
 
-set /p "START=Inicio do trecho (HH:MM:SS ou MM:SS): "
-set /p "END=Final do trecho (HH:MM:SS ou MM:SS): "
+set /p "START=Clip start (HH:MM:SS or MM:SS): "
+set /p "END=Clip end (HH:MM:SS or MM:SS): "
 
 if not defined START goto ERROR_START
 if not defined END goto ERROR_END
 
-echo INICIO: !START! >> "!LOG!"
-echo FINAL: !END! >> "!LOG!"
+echo START: !START! >> "!LOG!"
+echo END: !END! >> "!LOG!"
 
 goto MODE_DONE
 
@@ -206,49 +206,49 @@ mkdir "%TEMP_DIR%" >nul 2>&1
 
 if not exist "%TEMP_DIR%" goto ERROR_TEMP
 
-echo PASTA TEMPORARIA: %TEMP_DIR% >> "!LOG!"
+echo TEMP_DIR: %TEMP_DIR% >> "!LOG!"
 
 echo.
 echo ==================================================
-echo BAIXANDO VIDEO COMPLETO
+echo DOWNLOADING FULL VIDEO
 echo ==================================================
 echo.
 
-yt-dlp --force-ipv4 --retries 20 --fragment-retries 20 --retry-sleep 2 --print "FORMATO_RESOLVIDO: %%(format_id)s" --no-simulate --verbose -f "bv*[height=!RESOLUTION!][vcodec^^=avc1]+ba[acodec=opus]/bv*[height=!RESOLUTION!]+ba/b[height=!RESOLUTION!]/bv*[height<=!RESOLUTION!]+ba/best[height<=!RESOLUTION!]" --merge-output-format mkv --remux-video mkv -o "%TEMP_DIR%\source.%%(ext)s" "!URL!" >> "!LOG!" 2>&1
+yt-dlp --force-ipv4 --retries 20 --fragment-retries 20 --retry-sleep 2 --print "RESOLVED_FORMAT: %%(format_id)s" --no-simulate --verbose -f "bv*[height=!RESOLUTION!][vcodec^^=avc1]+ba[acodec=opus]/bv*[height=!RESOLUTION!]+ba/b[height=!RESOLUTION!]/bv*[height<=!RESOLUTION!]+ba/best[height<=!RESOLUTION!]" --merge-output-format mkv --remux-video mkv -o "%TEMP_DIR%\source.%%(ext)s" "!URL!" >> "!LOG!" 2>&1
 
 if errorlevel 1 goto ERROR_DOWNLOAD
 
 if not exist "%TEMP_DIR%\source.mkv" goto ERROR_SOURCE
 
 echo.
-echo Download concluido com sucesso.
-echo DOWNLOAD CONCLUIDO >> "!LOG!"
+echo Download completed successfully.
+echo DOWNLOAD COMPLETED >> "!LOG!"
 
 if "!MODE!"=="full" goto PREPARE_FULL
 
 set "START_SAFE=%START::=-%"
 set "END_SAFE=%END::=-%"
-set "OUTPUT_BASE=!SAFE_TITLE! - trecho !START_SAFE!-!END_SAFE!"
-set "INPUT=%TEMP_DIR%\trecho.mkv"
+set "OUTPUT_BASE=!SAFE_TITLE! - clip !START_SAFE!-!END_SAFE!"
+set "INPUT=%TEMP_DIR%\clip.mkv"
 
 echo.
 echo ==================================================
-echo CORTANDO TRECHO
+echo CUTTING CLIP
 echo ==================================================
 echo.
 
-echo Corte: !START! ate !END! >> "!LOG!"
+echo Clip: !START! to !END! >> "!LOG!"
 
-ffmpeg -y -ss "!START!" -to "!END!" -i "%TEMP_DIR%\source.mkv" -map 0 -c copy "%TEMP_DIR%\trecho.mkv" >> "!LOG!" 2>&1
+ffmpeg -y -ss "!START!" -to "!END!" -i "%TEMP_DIR%\source.mkv" -map 0 -c copy "%TEMP_DIR%\clip.mkv" >> "!LOG!" 2>&1
 
 if errorlevel 1 goto ERROR_CUT
 
-if not exist "%TEMP_DIR%\trecho.mkv" goto ERROR_CUT
+if not exist "%TEMP_DIR%\clip.mkv" goto ERROR_CUT
 
 goto PROCESS_OUTPUT
 
 :PREPARE_FULL
-set "OUTPUT_BASE=!SAFE_TITLE! - completo"
+set "OUTPUT_BASE=!SAFE_TITLE! - full"
 set "INPUT=%TEMP_DIR%\source.mkv"
 
 goto PROCESS_OUTPUT
@@ -263,7 +263,7 @@ goto ERROR_FORMAT
 set "FINAL_FILE=!OUTPUT_DIR!\!OUTPUT_BASE!.mkv"
 
 echo.
-echo Criando arquivo MKV final...
+echo Creating final MKV file...
 echo FINAL: !FINAL_FILE! >> "!LOG!"
 
 copy /b "%INPUT%" "!FINAL_FILE!" >nul
@@ -277,7 +277,7 @@ set "FINAL_FILE=!OUTPUT_DIR!\!OUTPUT_BASE!.mp4"
 
 echo.
 echo ==================================================
-echo CONVERTENDO PARA MP4
+echo CONVERTING TO MP4
 echo ==================================================
 echo.
 
@@ -297,22 +297,22 @@ rmdir /s /q "%TEMP_DIR%" >nul 2>&1
 
 echo.
 echo ==================================================
-echo                 CONCLUIDO
+echo                     COMPLETED
 echo ==================================================
 echo.
-echo Arquivo final:
+echo Final file:
 echo !FINAL_FILE!
 echo.
-echo Temporarios removidos.
+echo Temporary files removed.
 echo.
 echo Log:
 echo !LOG!
 echo.
 
-echo FINALIZADO: %date% %time% >> "!LOG!"
+echo FINISHED: %date% %time% >> "!LOG!"
 echo ================================================== >> "!LOG!"
 
-choice /c SN /n /m "Abrir a pasta de destino? [S/N] "
+choice /c YN /n /m "Open destination folder? [Y/N] "
 if errorlevel 2 goto SUCCESS_OPEN_DONE
 start "" "!OUTPUT_DIR!"
 
@@ -322,14 +322,14 @@ exit /b 0
 
 :ERROR_DESTINATION
 echo.
-echo ERRO: selecione uma pasta de destino valida e gravavel.
+echo ERROR: Select a valid, writable destination folder.
 pause
 exit /b 1
 
 :ERROR_RESOLUTION
 echo.
-echo ERRO: selecione o numero de uma resolucao H.264 disponivel.
-echo ERRO: opcao de resolucao invalida. >> "!LOG!"
+echo ERROR: Select a number of an available H.264 resolution.
+echo ERROR: Invalid resolution option. >> "!LOG!"
 pause
 exit /b 1
 
@@ -338,32 +338,32 @@ del "%VIDEO_DATA_FILE%" >nul 2>&1
 del "%TITLE_FILE%" >nul 2>&1
 del "%RESOLUTION_FILE%" >nul 2>&1
 echo.
-echo ERRO: nao foram encontradas resolucoes H.264 para este video.
-echo ERRO: nenhuma resolucao H.264 disponivel. >> "!LOG!"
+echo ERROR: No H.264 resolutions found for this video.
+echo ERROR: No H.264 resolutions available. >> "!LOG!"
 type "!LOG!"
 pause
 exit /b 1
 
 :ERROR_YTDLP
 echo.
-echo ERRO: yt-dlp nao foi encontrado na pasta bin nem no PATH.
-echo Consulte o log: !LOG!
-echo ERRO: yt-dlp nao encontrado. >> "!LOG!"
+echo ERROR: yt-dlp was not found in the bin folder or PATH.
+echo See log: !LOG!
+echo ERROR: yt-dlp not found. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_FFMPEG
 echo.
-echo ERRO: ffmpeg nao foi encontrado na pasta bin nem no PATH.
-echo Consulte o log: !LOG!
-echo ERRO: ffmpeg nao encontrado. >> "!LOG!"
+echo ERROR: ffmpeg was not found in the bin folder or PATH.
+echo See log: !LOG!
+echo ERROR: ffmpeg not found. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_URL
 echo.
-echo ERRO: nenhum link foi informado.
-echo ERRO: URL vazia. >> "!LOG!"
+echo ERROR: No URL provided.
+echo ERROR: Empty URL. >> "!LOG!"
 pause
 exit /b 1
 
@@ -372,7 +372,7 @@ if defined VIDEO_DATA_FILE del "%VIDEO_DATA_FILE%" >nul 2>&1
 if defined TITLE_FILE del "%TITLE_FILE%" >nul 2>&1
 if defined RESOLUTION_FILE del "%RESOLUTION_FILE%" >nul 2>&1
 echo.
-echo ERRO: nao foi possivel obter o titulo.
+echo ERROR: Could not get video title.
 echo.
 type "!LOG!"
 pause
@@ -380,7 +380,7 @@ exit /b 1
 
 :ERROR_SAFE_TITLE
 echo.
-echo ERRO: nao foi possivel preparar o nome do arquivo.
+echo ERROR: Could not prepare safe file name.
 echo.
 type "!LOG!"
 pause
@@ -388,43 +388,43 @@ exit /b 1
 
 :ERROR_FORMAT
 echo.
-echo ERRO: formato invalido.
-echo ERRO: formato invalido. >> "!LOG!"
+echo ERROR: Invalid format.
+echo ERROR: Invalid format. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_MODE
 echo.
-echo ERRO: opcao de conteudo invalida.
-echo ERRO: modo invalido. >> "!LOG!"
+echo ERROR: Invalid content option.
+echo ERROR: Invalid mode. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_START
 echo.
-echo ERRO: o inicio do trecho nao pode ficar vazio.
-echo ERRO: START vazio. >> "!LOG!"
+echo ERROR: Clip start cannot be empty.
+echo ERROR: Empty START. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_END
 echo.
-echo ERRO: o final do trecho nao pode ficar vazio.
-echo ERRO: END vazio. >> "!LOG!"
+echo ERROR: Clip end cannot be empty.
+echo ERROR: Empty END. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_TEMP
 echo.
-echo ERRO: nao foi possivel criar a pasta temporaria.
-echo ERRO: TEMP_DIR. >> "!LOG!"
+echo ERROR: Could not create temporary folder.
+echo ERROR: TEMP_DIR. >> "!LOG!"
 pause
 exit /b 1
 
 :ERROR_DOWNLOAD
 echo.
 echo ==================================================
-echo ERRO: FALHA NO DOWNLOAD
+echo ERROR: DOWNLOAD FAILED
 echo ==================================================
 echo.
 type "!LOG!"
@@ -434,8 +434,8 @@ exit /b 1
 
 :ERROR_SOURCE
 echo.
-echo ERRO: source.mkv nao foi encontrado.
-echo ERRO: source.mkv inexistente. >> "!LOG!"
+echo ERROR: source.mkv was not found.
+echo ERROR: source.mkv not found. >> "!LOG!"
 type "!LOG!"
 rmdir /s /q "%TEMP_DIR%" >nul 2>&1
 pause
@@ -444,7 +444,7 @@ exit /b 1
 :ERROR_CUT
 echo.
 echo ==================================================
-echo ERRO: FALHA AO CORTAR O TRECHO
+echo ERROR: FAILED TO CUT CLIP
 echo ==================================================
 echo.
 type "!LOG!"
@@ -455,7 +455,7 @@ exit /b 1
 :ERROR_CONVERT
 echo.
 echo ==================================================
-echo ERRO: FALHA NA CONVERSAO PARA MP4
+echo ERROR: MP4 CONVERSION FAILED
 echo ==================================================
 echo.
 type "!LOG!"
@@ -465,8 +465,8 @@ exit /b 1
 
 :ERROR_FINAL
 echo.
-echo ERRO: arquivo final nao foi criado.
-echo ERRO: arquivo final inexistente. >> "!LOG!"
+echo ERROR: Final file was not created.
+echo ERROR: Final file not found. >> "!LOG!"
 type "!LOG!"
 rmdir /s /q "%TEMP_DIR%" >nul 2>&1
 pause
