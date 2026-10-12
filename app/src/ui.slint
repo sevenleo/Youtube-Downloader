@@ -208,9 +208,9 @@ export component AppWindow inherits Window {
     title: "Youtube Downloader";
     icon: @image-url("../assets/icon.png");
     preferred-width: 820px;
-    preferred-height: 700px;
+    preferred-height: 660px;
     min-width: 720px;
-    min-height: 700px;
+    min-height: 660px;
 
     // State helper properties.
     property <bool> is-busy: root.dl_state == "analyzing" || root.dl_state == "downloading" || root.dl_state == "cutting" || root.dl_state == "converting" || root.dl_state == "finalizing";
@@ -234,6 +234,7 @@ export component AppWindow inherits Window {
             spacing: 2px;
 
             Card {
+                height: 96px;
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
@@ -250,7 +251,8 @@ export component AppWindow inherits Window {
                         visible: root.update-available;
                     }
                     Button {
-                        text: "Update binaries";
+                        text: "Update";
+                        height: 32px;
                         enabled: !root.is-busy;
                         clicked => { root.screen = 1; }
                     }
@@ -259,12 +261,14 @@ export component AppWindow inherits Window {
                     spacing: 8px;
                     url-edit := LineEdit {
                         text <=> root.url;
+                        height: 34px;
                         placeholder-text: "Paste YouTube link here…";
                         enabled: !root.is-busy;
                         accepted => { root.analyze(); }
                     }
                     AccentButton {
                         text: "Analyze";
+                        height: 34px;
                         enabled: root.can-analyze;
                         clicked => { root.analyze(); }
                     }
@@ -273,11 +277,12 @@ export component AppWindow inherits Window {
 
             // --- Video: thumbnail + title + duration ---
             Card {
+                height: 218px;
                 HorizontalLayout {
                     alignment: center;
                     Rectangle {
-                        width: 208px;
-                        height: 117px;
+                        width: root.show_log ? 160px : 208px;
+                        height: root.show_log ? 90px : 117px;
                         horizontal-stretch: 0;
                         vertical-stretch: 0;
                         background: #101018;
@@ -311,8 +316,10 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // --- Options: quality, format, content/clip, folder ---
-            Card {
+            // --- Options: hidden while log is open (options are locked during
+            // download anyway; keeps everything on screen with no scroll) ---
+            if !root.show_log: Card {
+                height: 168px;
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
@@ -324,6 +331,7 @@ export component AppWindow inherits Window {
                     }
                     res-combo := ComboBox {
                         model: root.resolutions;
+                        height: 34px;
                         current-index <=> root.resolution_index;
                         enabled: root.resolutions.length > 0 && !root.is-busy;
                         horizontal-stretch: 1;
@@ -333,7 +341,7 @@ export component AppWindow inherits Window {
                     spacing: 8px;
                     Text {
                         text: "Format:";
-                        width: 80px;
+                        width: 70px;
                         vertical-alignment: center;
                         font-size: 13px;
                         color: #c9cede;
@@ -343,12 +351,9 @@ export component AppWindow inherits Window {
                         current <=> root.container;
                         enabled: !root.is-busy;
                     }
-                }
-                HorizontalLayout {
-                    spacing: 8px;
                     Text {
                         text: "Content:";
-                        width: 80px;
+                        width: 70px;
                         vertical-alignment: center;
                         font-size: 13px;
                         color: #c9cede;
@@ -361,10 +366,11 @@ export component AppWindow inherits Window {
                     LineEdit {
                         text <=> root.start_t;
                         placeholder-text: "Start";
+                        height: 30px;
                         enabled: root.mode == 1 && !root.is-busy;
                         horizontal-stretch: 0;
-                        min-width: 96px;
-                        max-width: 96px;
+                        min-width: 88px;
+                        max-width: 88px;
                     }
                     Text {
                         text: "to";
@@ -375,10 +381,11 @@ export component AppWindow inherits Window {
                     LineEdit {
                         text <=> root.end_t;
                         placeholder-text: "End";
+                        height: 30px;
                         enabled: root.mode == 1 && !root.is-busy;
                         horizontal-stretch: 0;
-                        min-width: 96px;
-                        max-width: 96px;
+                        min-width: 88px;
+                        max-width: 88px;
                     }
                 }
                 HorizontalLayout {
@@ -392,6 +399,7 @@ export component AppWindow inherits Window {
                     }
                     Button {
                         text: "Browse…";
+                        height: 34px;
                         clicked => { root.pick_folder(); }
                     }
                     Text {
@@ -405,8 +413,9 @@ export component AppWindow inherits Window {
                 }
             }
 
-            // --- Progress + stage ---
+            // --- Progress + stage (fixed height; absorbs no stretch) ---
             Card {
+                height: 76px;
                 HorizontalLayout {
                     spacing: 8px;
                     Text {
@@ -451,9 +460,8 @@ export component AppWindow inherits Window {
                     color: #c9cede;
                 }
                 ScrollView {
-                    height: 110px;
+                    height: 70px;
                     vertical-stretch: 0;
-                    content-y: min(0px, self.visible-height - self.content-height);
                     VerticalLayout {
                         alignment: start;
                         spacing: 2px;
@@ -497,10 +505,13 @@ export component AppWindow inherits Window {
                 AccentButton {
                     text: "Download";
                     min-width: 112px;
+                    height: 32px;
                     enabled: root.can-download && !root.is-busy;
                     clicked => { root.start_download(); }
                 }
             }
+            // Spacer: absorbs excess height in taller windows (content stays put).
+            Rectangle { vertical-stretch: 1; }
         }
 
         // ================= UPDATE SCREEN =================
@@ -515,7 +526,7 @@ export component AppWindow inherits Window {
                     clicked => { root.screen = 0; }
                 }
                 Text {
-                    text: "Update binaries";
+                    text: "Update";
                     font-size: 15px;
                     font-weight: 700;
                     color: white;

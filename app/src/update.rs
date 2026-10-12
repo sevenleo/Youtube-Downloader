@@ -437,7 +437,7 @@ pub fn run_update(
     Ok(results)
 }
 
-/// Monta o status completo de um binario a partir de instalada/mais recente.
+/// Builds the full status of a binary from its installed/latest versions.
 pub fn make_status(installed: Option<String>, latest: Option<String>) -> BinaryStatus {
     BinaryStatus {
         badge: badge_of(installed.as_deref(), latest.as_deref()),

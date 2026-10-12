@@ -1,35 +1,34 @@
 # Changelog
 
 ## [0.6.0] - 2026-10-12
--c Translate project to English
+-c Compact no-scroll GUI layout
 
-- Translate all documentation (docs/README.md) to English.
-- Translate desktop GUI (app/src/ui.slint) and Windows scripts (download.bat, update.bat) to English.
-- Translate backend code comments, docstrings, error messages, and log markers (START, FINISHED, RESOLVED_FORMAT).
-- Update download.log contract across Rust core and end-to-end tests.
+- Single-screen layout fits the window with no scrolling: header merged into the URL card, 208×117 thumbnail, tight spacing, uniform 104×30 action buttons (Download stays 112px primary).
+- Bottom action buttons share one exact size (Cancel, Open folder, New, View log); only Download is larger.
+- Log swaps places with the options card when opened, so thumbnail and title stay visible and everything fits without scrolling.
+- Format and Content selectors share one row; error and output lines collapse when empty.
+- Overlay screen navigation (fixes black-screen bug where the hidden tab pushed the visible one out of the window).
+- Missing binaries boot directly into the Update screen with an explanatory message.
 
 ## [0.5.0] - 2026-10-12
 -c Update screen improvements
 
-- Update buttons now disabled when both binaries are already up-to-date
-- New labels: "Atualizar yt-dlp", "Atualizar FFmpeg", "Atualizar tudo"
-- New "Excluir binários" button (red) with two-step confirmation to clear `bin/`
-- Buttons organized in vertical column (one per line, full width)
-- "Verificar atualizações" button shows "Verificando..." during check, then "Atualizados" (green) or lists outdated binaries
-- Feedback text with dynamic colors: blue during check, green on success, red on error
-- Buttons automatically disabled when both binaries are up-to-date (badge==0)
-- Delete binaries button with two-step confirmation, auto re-checks versions after deletion
+- Update buttons now disabled when both binaries are already up to date.
+- New labels: "Update yt-dlp", "Update FFmpeg", "Update all".
+- New "Delete binaries" button (red) with two-step confirmation to clear `bin/`.
+- Buttons organized in a vertical column (one per line, full width).
+- "Check for updates" button shows "Checking..." during the check, then "All tools are up to date" (green) or lists outdated tools.
+- Feedback text with dynamic colors: blue during check, green on success, red on error.
+- After deletion, versions are re-checked automatically.
 
 ## [0.4.0] - 2026-10-12
--c GUI polish: fix layout issues, improve UX
+-c Polish Rust desktop GUI
 
-- Fix: thumbnail and title no longer disappear when log is opened (log swaps with video in-place instead of hiding them)
-- Fix: removed large empty space at bottom of window (content now fills window height naturally)
-- Fix: bottom action buttons standardized to 104×30 (Download remains 112px primary)
-- Fix: log now opens in-place below progress bar, thumbnail/title always visible
-- Layout: window auto-height 820×700, no scroll needed; cards don't stretch; spacer absorbs extra space
-- Navigation: tabs replaced with screen overlay (fixes black screen bug where hidden tab pushed visible one out)
-- Boot: missing binaries auto-opens Update screen with explanatory message
+- Fix: thumbnail and title no longer disappear when the log is opened.
+- Fix: removed large empty space at the bottom of the window.
+- Fix: bottom action buttons standardized to 104×30 (Download remains 112px primary).
+- Navigation: tabs replaced with overlay screens.
+- Boot: missing binaries auto-open the Update screen with an explanatory message.
 
 ## [0.3.0] - 2026-10-11
 -c Add Rust desktop GUI
@@ -44,8 +43,8 @@
 
 - New `update.bat` compares the installed versions against the latest official releases before downloading anything.
 - Shows installed version, latest version, and up-to-date/outdated status for both yt-dlp and FFmpeg.
-- Lets the user update only yt-dlp, only FFmpeg, or both; `update.bat 0|1|2|3` skips the menu for automation.
-- Downloads yt-dlp from `github.com/yt-dlp/yt-dlp` (fallback: official nightly builds repo) and FFmpeg from `github.com/BtbN/FFmpeg-Builds` (fallback: `gyan.dev`), the builds recommended on ffmpeg.org.
+- Lets the user update only yt-dlp, only FFmpeg, or both; `update.bat 3` skips the menu for automation.
+- Downloads yt-dlp from `github.com/yt-dlp/yt-dlp` (fallback: official nightly builds repo) and FFmpeg from `github.com/BtbN/FFmpeg-Builds` (fallback: `gyan.dev`, the builds recommended on ffmpeg.org).
 
 -c Reorganize project layout
 
@@ -59,6 +58,7 @@
 - Fall back to same-height, progressive, or nearest-lower formats when H.264 plus Opus is unavailable.
 - Show only resolutions that really exist in the video, with height and dimensions.
 - Log the resolved yt-dlp format ids as FORMATO_RESOLVIDO.
+
 -c Number resolution options
 
 - Number each available H.264 resolution so users select it by position.
