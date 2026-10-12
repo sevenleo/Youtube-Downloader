@@ -1,7 +1,20 @@
 # Changelog
 
+# Changelog
+
+## [0.4.0] - 2026-10-12
+-c GUI polish: fix layout issues, improve UX
+
+- Fix: thumbnail and title no longer disappear when log is opened (log swaps with video in-place instead of hiding them)
+- Fix: removed large empty space at bottom of window (content now fills window height naturally)
+- Fix: bottom action buttons standardized to 104×30 (Download remains 112px primary)
+- Fix: log now opens in-place below progress bar, thumbnail/title always visible
+- Layout: window auto-height 820×700, no scroll needed; cards don't stretch; spacer absorbs extra space
+- Navigation: tabs replaced with screen overlay (fixes black screen bug where hidden tab pushed visible one out)
+- Boot: missing binaries auto-opens Update screen with explanatory message
+
 ## [0.3.0] - 2026-10-11
--c Add YoutubeDownloader.exe GUI
+-c Add Rust desktop GUI
 
 - New Rust + Slint desktop app (`app/`, single `YoutubeDownloader.exe`) equivalent to `download.bat` and `update.bat`, using the existing `bin/` binaries.
 - Download screen: URL analysis with title, duration, thumbnail and real H.264 resolutions; MKV/MP4 output; full video or clip; real progress bar, live log, cancel, open-folder and new-download buttons; same `download.log` as the script.

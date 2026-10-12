@@ -16,8 +16,6 @@ mod e2e_test;
 
 slint::include_modules!();
 
-#[cfg(windows)]
-use std::os::windows::process::CommandExt;
 use std::path::PathBuf;
 use std::rc::Rc;
 use std::sync::{
@@ -89,7 +87,6 @@ fn fmt_update_summary(results: &[(BinTarget, bool, String)]) -> SharedString {
 /// Acrescenta uma linha ao log ao vivo (chamado na thread da UI).
 /// Limita o historico para nao degradar a renderizacao.
 fn push_log(app: &AppWindow, line: String) {
-    app.set_log_tick(app.get_log_tick().wrapping_add(1));
     let model = app.get_log_lines();
     if model.row_count() > 1000 {
         for _ in 0..200 {
@@ -156,6 +153,7 @@ fn apply_event(
             app.set_dl_percent(0.0);
             app.set_dl_error("".into());
             app.set_dl_final("".into());
+            app.set_analysis_ok(true);
             push_log(app, format!("Análise concluída: {n} qualidades encontradas."));
         }
         UiEvent::ThumbnailReady(res) => {
@@ -181,11 +179,13 @@ fn apply_event(
             app.set_dl_state("done".into());
             app.set_dl_final(path.clone().into());
             app.set_dl_percent(100.0);
+            app.set_analysis_ok(false);
             push_log(app, format!("Concluído: {path}"));
         }
         UiEvent::ProbeError(msg) => {
             app.set_dl_state("error".into());
             app.set_dl_error(msg.clone().into());
+            app.set_analysis_ok(false);
             push_log(app, format!("ERRO: {msg}"));
         }
         UiEvent::DownloadError(msg) => {
@@ -263,6 +263,7 @@ fn main() -> anyhow::Result<()> {
             ui.set_dl_error("".into());
             ui.set_dl_final("".into());
             ui.set_dl_percent(0.0);
+            ui.set_analysis_ok(false);
             ui.set_video_title("Analisando…".into());
             ui.set_duration("".into());
             *video.lock().unwrap() = None;
@@ -329,8 +330,10 @@ fn main() -> anyhow::Result<()> {
         let cancel_slot = cancel_slot.clone();
         app.on_start_download(move || {
             let Some(ui) = weak.upgrade() else { return };
+            // Item 1: erro de validacao mostra so a mensagem (nao destroi `ready`);
+            // o botao Baixar reage via binding can-download e o erro some via
+            // handlers `changed` no .slint ao corrigir as opcoes.
             let fail = |ui: &AppWindow, msg: &str| {
-                ui.set_dl_state("error".into());
                 ui.set_dl_error(msg.into());
             };
 
@@ -462,6 +465,8 @@ fn main() -> anyhow::Result<()> {
             ui.set_dl_percent(0.0);
             ui.set_dl_error("".into());
             ui.set_dl_final("".into());
+            ui.set_analysis_ok(false);
+            ui.set_show_log(false);
             ui.set_video_title("".into());
             ui.set_duration("".into());
             ui.set_resolutions(Rc::new(VecModel::from(Vec::<SharedString>::new())).into());
@@ -470,27 +475,12 @@ fn main() -> anyhow::Result<()> {
         });
     }
 
-    // ---- on_view_log: abre download.log da pasta destino ----
+    // ---- on_view_log: toggle do painel de log in-app (item 2) ----
     {
-        let tx = tx.clone();
         let weak = app.as_weak();
         app.on_view_log(move || {
             let Some(ui) = weak.upgrade() else { return };
-            let dir = ui.get_output_dir().trim().to_string();
-            if dir.is_empty() {
-                return;
-            }
-            let log = download::log_path(std::path::Path::new(&dir));
-            let target = log.to_string_lossy().into_owned();
-            let mut cmd = std::process::Command::new("cmd");
-            cmd.args(["/C", "start", "", target.as_str()]);
-            #[cfg(windows)]
-            cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-            if cmd.spawn().is_err() {
-                let _ = tx.send(UiEvent::LogLine(
-                    "Não foi possível abrir o download.log.".into(),
-                ));
-            }
+            ui.set_show_log(!ui.get_show_log());
         });
     }
 
@@ -550,6 +540,15 @@ fn main() -> anyhow::Result<()> {
         app.set_upd_msg("Verificando versões em segundo plano…".into());
         let txb = tx.clone();
         std::thread::spawn(move || check_updates_and_emit(&txb));
+    }
+
+    // ---- BOOT (item 5): sem binarios, abre direto na tela de atualizar ----
+    if tools::locate().is_err() {
+        app.set_screen(1);
+        app.set_missing_tools_msg(
+            "yt-dlp ou ffmpeg não encontrado. Instale os binários abaixo para começar a baixar."
+                .into(),
+        );
     }
 
     app.run()?;
