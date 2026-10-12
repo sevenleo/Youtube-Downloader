@@ -1,4 +1,4 @@
-# Downloader - yt-dlp + FFmpeg
+# Youtube Downloader
 
 Windows automation for downloading videos with **yt-dlp** and **FFmpeg**, available both as batch scripts and as a desktop GUI.
 
