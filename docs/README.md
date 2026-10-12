@@ -68,17 +68,55 @@ Downloader/
 │
 ├── download.bat
 ├── update.bat
+├── YoutubeDownloader.exe
 ├── bin/
 │   ├── yt-dlp.exe
 │   ├── ffmpeg.exe
 │   ├── ffplay.exe
 │   └── ffprobe.exe
-└── doc/
+├── app/
+│   ├── Cargo.toml
+│   └── src/
+└── docs/
     ├── README.md
-    └── CHANGELOG.md
+    ├── CHANGELOG.md
+    ├── PLAN/
+    └── sync.py
 ```
 
 O arquivo `download.log` é criado automaticamente na pasta de destino selecionada e não precisa existir previamente.
+
+---
+
+## Interface gráfica (YoutubeDownloader.exe)
+
+O `YoutubeDownloader.exe` é um aplicativo desktop (Rust + Slint) que faz exatamente a mesma coisa que os dois scripts, com interface visual em tema escuro. Não requer instalação nem Python: basta executá-lo ao lado da pasta `bin/`.
+
+```text
+YoutubeDownloader.exe
+```
+
+### Aba Download (equivale ao download.bat)
+
+* Campo de URL + botão **Analisar**: mostra título, duração, miniatura e as resoluções H.264 reais do vídeo
+* Formato **MKV ou MP4**, vídeo **completo ou trecho** (início/fim em `HH:MM:SS` ou `MM:SS`)
+* Seletor de pasta de destino, barra de progresso real, log ao vivo e botões **Cancelar**, **Abrir pasta** e **Novo download**
+* Gera o mesmo `download.log` do script, na pasta de destino
+
+### Aba Atualizar (equivale ao update.bat)
+
+* Tabela com versão instalada, versão mais recente e status de cada binário
+* Botões para atualizar só o yt-dlp, só o FFmpeg ou ambos, com resumo OK/FALHOU
+* Ao abrir o app, as versões são verificadas em segundo plano e um aviso aparece se houver atualização
+* Se a pasta `bin/` não existir, o app abre direto nesta aba e instala tudo sozinho
+
+Para compilar a partir do código-fonte (`app/`), com a toolchain Rust instalada:
+
+```text
+cd app
+cargo build --release
+copy target\release\YoutubeDownloader.exe ..\
+```
 
 ---
 

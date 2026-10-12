@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-10-11
+-c Add YoutubeDownloader.exe GUI
+
+- New Rust + Slint desktop app (`app/`, single `YoutubeDownloader.exe`) equivalent to `download.bat` and `update.bat`, using the existing `bin/` binaries.
+- Download screen: URL analysis with title, duration, thumbnail and real H.264 resolutions; MKV/MP4 output; full video or clip; real progress bar, live log, cancel, open-folder and new-download buttons; same `download.log` as the script.
+- Update screen: installed/latest version table with status badges, yt-dlp / FFmpeg / both update buttons, background version check on startup; opens directly here when `bin/` is missing (self-bootstrap).
+- `download.bat`, `update.bat` and `bin/` remain untouched and fully functional.
+
 ## [0.2.0] - 2026-09-27
 -c Add update.bat updater
 

@@ -9,3 +9,4 @@ sync.py
 download.log
 bin/
 *.exe
+/app/target/

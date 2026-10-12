@@ -1,0 +1,529 @@
+// CONTRATO UI (congelado): nomes de propriedades/callbacks NAO podem mudar.
+// O design/layout interno e livre (agente de UI), mas o contrato e fixo.
+// Slint 1.x - tema dark, estilo fluent, acento #7C5CFF.
+
+import { TabWidget, Button, LineEdit, ComboBox, ProgressIndicator, ScrollView, Palette } from "std-widgets.slint";
+
+// Card arredondado do tema dark.
+component Card inherits Rectangle {
+    background: #1d1d27;
+    border-radius: 10px;
+    border-width: 1px;
+    border-color: #2e2e3a;
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        @children
+    }
+}
+
+// Botao primario com o acento #7C5CFF (o Button primary do fluent usa o azul padrao).
+component AccentButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked;
+
+    min-width: 120px;
+    min-height: 32px;
+    horizontal-stretch: 0;
+    vertical-stretch: 0;
+    border-radius: 6px;
+    background: !root.enabled ? #3a3a46 : touch.pressed ? #6a4de0 : touch.has-hover ? #8f74ff : #7c5cff;
+    accessible-role: button;
+    accessible-label: root.text;
+    accessible-enabled: root.enabled;
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        Text {
+            text: root.text;
+            color: root.enabled ? white : #8a8a95;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+// Badge de status da aba Atualizar (0 verde, 1 amarelo, 2 vermelho, 3 cinza).
+component Badge inherits Rectangle {
+    in property <int> kind;
+    in property <string> label;
+
+    min-height: 24px;
+    border-radius: 12px;
+    background: root.kind == 0 ? #1e6b38 : root.kind == 1 ? #8a6d00 : root.kind == 2 ? #a0231b : #4d4d59;
+
+    HorizontalLayout {
+        padding-left: 10px;
+        padding-right: 10px;
+        alignment: center;
+        Text {
+            text: root.label;
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+}
+
+export component AppWindow inherits Window {
+    // ---- Download (aba Download) ----
+    in-out property <string> url: "";
+    in-out property <string> output_dir: "";
+    in-out property <int> resolution_index: 0;
+    in property <[string]> resolutions: [];
+    in property <string> video_title: "";
+    in property <string> duration: "";
+    in property <image> thumbnail;          // placeholder ate a miniatura chegar
+    in-out property <int> mode: 0;          // 0 = completo, 1 = trecho
+    in-out property <string> start_t: "";   // HH:MM:SS ou MM:SS
+    in-out property <string> end_t: "";
+    in-out property <int> container: 0;     // 0 = MKV, 1 = MP4
+    in property <string> dl_state: "idle";  // idle|analyzing|ready|downloading|cutting|converting|finalizing|done|error
+    in property <float> dl_percent: 0;      // 0..100
+    in property <string> dl_error: "";
+    in property <string> dl_final: "";      // caminho do arquivo final (quando done)
+    in property <[string]> log_lines: [];
+    // Incrementado a cada linha de log (dispara o autoscroll do `changed` abaixo).
+    in property <int> log_tick: 0;
+
+    // ---- Atualizar (aba Atualizar) ----
+    in-out property <int> update_tab: 0;    // 0 = Download, 1 = Atualizar
+    in property <string> ytdlp_installed: "-";
+    in property <string> ytdlp_latest: "-";
+    in property <int> ytdlp_badge: 3;       // 0 ok, 1 update disponivel, 2 nao instalado, 3 desconhecido
+    in property <string> ffmpeg_installed: "-";
+    in property <string> ffmpeg_latest: "-";
+    in property <int> ffmpeg_badge: 3;
+    in property <bool> upd_busy: false;
+    in property <float> upd_percent: 0;     // 0..100
+    in property <string> upd_msg: "";
+    in property <string> upd_summary: "";
+
+    // ---- Callbacks (UI -> Rust) ----
+    callback analyze();
+    callback pick_folder();
+    callback start_download();
+    callback cancel_download();
+    callback open_folder();
+    callback new_download();
+    callback view_log();
+    callback check_updates();
+    callback run_update(int); // bitmask: 1 yt-dlp, 2 ffmpeg, 3 ambos
+
+    // Autoscroll do log ao vivo: a cada linha nova, cola no fim do conteudo.
+    changed log_tick => {
+        logview.content-y = min(0px, logview.visible-height - logview.content-height);
+    }
+
+    title: "Youtube Downloader";
+    icon: @image-url("../assets/icon.png");
+    preferred-width: 880px;
+    preferred-height: 780px;
+    min-width: 760px;
+    min-height: 620px;
+
+    // Helpers de estado (privados, fora do contrato).
+    property <bool> is-busy: root.dl_state == "analyzing" || root.dl_state == "downloading" || root.dl_state == "cutting" || root.dl_state == "converting" || root.dl_state == "finalizing";
+    property <bool> is-working: root.dl_state == "downloading" || root.dl_state == "cutting" || root.dl_state == "converting" || root.dl_state == "finalizing";
+    property <bool> is-finished: root.dl_state == "done" || root.dl_state == "error";
+    property <bool> can-analyze: root.url != "" && (root.dl_state == "idle" || root.dl_state == "ready" || root.dl_state == "done" || root.dl_state == "error");
+    property <string> stage-text: root.dl_state == "analyzing" ? "Analisando link…" : root.dl_state == "ready" ? "Pronto para baixar" : root.dl_state == "downloading" ? "Baixando…" : root.dl_state == "cutting" ? "Cortando trecho…" : root.dl_state == "converting" ? "Convertendo…" : root.dl_state == "finalizing" ? "Finalizando…" : root.dl_state == "done" ? "Concluído" : root.dl_state == "error" ? "Erro" : "Ocioso";
+
+    init => {
+        Palette.color-scheme = ColorScheme.dark;
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 10px;
+
+        main-tabs := TabWidget {
+            current-index <=> root.update_tab;
+            vertical-stretch: 1;
+
+            Tab {
+                title: "Download";
+
+                VerticalLayout {
+                    padding-top: 10px;
+                    spacing: 10px;
+
+                    // --- URL + Analisar ---
+                    Card {
+                        Text {
+                            text: "Link do vídeo";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #c9cede;
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            url-edit := LineEdit {
+                                text <=> root.url;
+                                placeholder-text: "Cole aqui a URL do YouTube…";
+                                enabled: !root.is-busy;
+                                accepted => { root.analyze(); }
+                            }
+                            AccentButton {
+                                text: "Analisar";
+                                enabled: root.can-analyze;
+                                clicked => { root.analyze(); }
+                            }
+                        }
+                    }
+
+                    // --- Card do video: thumbnail + titulo + duracao + resolucoes ---
+                    Card {
+                        HorizontalLayout {
+                            spacing: 12px;
+                            Rectangle {
+                                width: 176px;
+                                height: 100px;
+                                horizontal-stretch: 0;
+                                vertical-stretch: 0;
+                                background: #101018;
+                                border-radius: 8px;
+                                border-width: 1px;
+                                border-color: #2e2e3a;
+                                clip: true;
+                                Image {
+                                    source: root.thumbnail;
+                                    width: 100%;
+                                    height: 100%;
+                                    image-fit: contain;
+                                }
+                            }
+                            VerticalLayout {
+                                spacing: 6px;
+                                horizontal-stretch: 1;
+                                Text {
+                                    text: root.video_title == "" ? "Nenhum vídeo analisado ainda" : root.video_title;
+                                    font-size: 15px;
+                                    font-weight: 700;
+                                    color: root.video_title == "" ? #8a8a95 : white;
+                                    wrap: word-wrap;
+                                    max-height: 44px;
+                                    overflow: clip;
+                                }
+                                Text {
+                                    text: "Duração: " + (root.duration == "" ? "--:--:--" : root.duration);
+                                    font-size: 12px;
+                                    color: #9aa0b4;
+                                }
+                                res-combo := ComboBox {
+                                    model: root.resolutions;
+                                    current-index <=> root.resolution_index;
+                                    enabled: root.resolutions.length > 0 && !root.is-busy;
+                                }
+                                Text {
+                                    text: "Analise um link para ver as qualidades disponíveis.";
+                                    font-size: 12px;
+                                    color: #8a8a95;
+                                    visible: root.resolutions.length == 0;
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Opcoes: formato, conteudo/trecho, pasta ---
+                    Card {
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "Formato:";
+                                width: 80px;
+                                vertical-alignment: center;
+                                font-size: 13px;
+                                color: #c9cede;
+                            }
+                            Button {
+                                text: "MKV";
+                                primary: root.container == 0;
+                                clicked => { root.container = 0; }
+                            }
+                            Button {
+                                text: "MP4";
+                                primary: root.container == 1;
+                                clicked => { root.container = 1; }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "Conteúdo:";
+                                width: 80px;
+                                vertical-alignment: center;
+                                font-size: 13px;
+                                color: #c9cede;
+                            }
+                            Button {
+                                text: "Completo";
+                                primary: root.mode == 0;
+                                clicked => { root.mode = 0; }
+                            }
+                            Button {
+                                text: "Trecho";
+                                primary: root.mode == 1;
+                                clicked => { root.mode = 1; }
+                            }
+                            LineEdit {
+                                text <=> root.start_t;
+                                placeholder-text: "Início";
+                                enabled: root.mode == 1 && !root.is-busy;
+                                horizontal-stretch: 0;
+                                min-width: 110px;
+                                max-width: 110px;
+                            }
+                            Text {
+                                text: "até";
+                                vertical-alignment: center;
+                                font-size: 12px;
+                                color: #9aa0b4;
+                            }
+                            LineEdit {
+                                text <=> root.end_t;
+                                placeholder-text: "Fim";
+                                enabled: root.mode == 1 && !root.is-busy;
+                                horizontal-stretch: 0;
+                                min-width: 110px;
+                                max-width: 110px;
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: "Pasta:";
+                                width: 80px;
+                                vertical-alignment: center;
+                                font-size: 13px;
+                                color: #c9cede;
+                            }
+                            Button {
+                                text: "Escolher pasta…";
+                                clicked => { root.pick_folder(); }
+                            }
+                            Text {
+                                text: root.output_dir == "" ? "Nenhuma pasta escolhida" : root.output_dir;
+                                horizontal-stretch: 1;
+                                vertical-alignment: center;
+                                font-size: 12px;
+                                color: root.output_dir == "" ? #8a8a95 : #c9cede;
+                                overflow: elide;
+                            }
+                        }
+                    }
+
+                    // --- Progresso + etapa ---
+                    Card {
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Text {
+                                text: root.stage-text;
+                                horizontal-stretch: 1;
+                                font-size: 13px;
+                                font-weight: 600;
+                                color: #7c5cff;
+                                vertical-alignment: center;
+                            }
+                            Text {
+                                text: Math.round(root.dl_percent) + "%";
+                                font-size: 13px;
+                                color: #c9cede;
+                                vertical-alignment: center;
+                            }
+                        }
+                        ProgressIndicator {
+                            progress: root.dl_percent / 100;
+                            indeterminate: root.dl_state == "analyzing";
+                        }
+                        Text {
+                            text: root.dl_error;
+                            color: #ff6b61;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            visible: root.dl_state == "error" && root.dl_error != "";
+                        }
+                        Text {
+                            text: "Arquivo: " + root.dl_final;
+                            color: #7fd08a;
+                            font-size: 12px;
+                            wrap: word-wrap;
+                            visible: root.dl_state == "done" && root.dl_final != "";
+                        }
+                    }
+
+                    // --- Log ao vivo ---
+                    Card {
+                        Text {
+                            text: "Log";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #c9cede;
+                        }
+                        logview := ScrollView {
+                            height: 110px;
+                            vertical-stretch: 0;
+                            VerticalLayout {
+                                alignment: start;
+                                spacing: 2px;
+                                Text {
+                                    text: "O log do download aparece aqui…";
+                                    font-size: 12px;
+                                    color: #6d6d7a;
+                                    visible: root.log_lines.length == 0;
+                                }
+                                for line in root.log_lines: Text {
+                                    text: line;
+                                    font-size: 12px;
+                                    color: #c9cede;
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Acoes ---
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: center;
+                        AccentButton {
+                            text: "Baixar";
+                            enabled: root.dl_state == "ready";
+                            clicked => { root.start_download(); }
+                        }
+                        Button {
+                            text: "Cancelar";
+                            enabled: root.is-working;
+                            clicked => { root.cancel_download(); }
+                        }
+                        Button {
+                            text: "Abrir pasta";
+                            enabled: root.output_dir != "";
+                            clicked => { root.open_folder(); }
+                        }
+                        Button {
+                            text: "Novo download";
+                            enabled: root.is-finished;
+                            clicked => { root.new_download(); }
+                        }
+                        Button {
+                            text: "Ver log";
+                            enabled: root.is-finished;
+                            clicked => { root.view_log(); }
+                        }
+                    }
+                }
+            }
+
+            Tab {
+                title: "Atualizar";
+
+                VerticalLayout {
+                    padding-top: 10px;
+                    spacing: 10px;
+
+                    // --- Tabela de versoes ---
+                    Card {
+                        Text {
+                            text: "Versões instaladas x disponíveis";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #c9cede;
+                        }
+                        GridLayout {
+                            spacing: 8px;
+                            Row {
+                                Text { text: "Componente"; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                                Text { text: "Instalada"; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                                Text { text: "Mais recente"; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                                Text { text: "Status"; font-weight: 600; color: #9aa0b4; font-size: 12px; }
+                            }
+                            Row {
+                                Text { text: "yt-dlp"; font-size: 13px; color: white; vertical-alignment: center; }
+                                Text { text: root.ytdlp_installed; font-size: 12px; color: #c9cede; vertical-alignment: center; }
+                                Text { text: root.ytdlp_latest; font-size: 12px; color: #c9cede; vertical-alignment: center; }
+                                Badge {
+                                    kind: root.ytdlp_badge;
+                                    label: root.ytdlp_badge == 0 ? "Atualizado" : root.ytdlp_badge == 1 ? "Atualização disponível" : root.ytdlp_badge == 2 ? "Não instalado" : "Desconhecido";
+                                }
+                            }
+                            Row {
+                                Text { text: "FFmpeg"; font-size: 13px; color: white; vertical-alignment: center; }
+                                Text { text: root.ffmpeg_installed; font-size: 12px; color: #c9cede; vertical-alignment: center; }
+                                Text { text: root.ffmpeg_latest; font-size: 12px; color: #c9cede; vertical-alignment: center; }
+                                Badge {
+                                    kind: root.ffmpeg_badge;
+                                    label: root.ffmpeg_badge == 0 ? "Atualizado" : root.ffmpeg_badge == 1 ? "Atualização disponível" : root.ffmpeg_badge == 2 ? "Não instalado" : "Desconhecido";
+                                }
+                            }
+                        }
+                    }
+
+                    // --- Acoes de update ---
+                    Card {
+                        HorizontalLayout {
+                            spacing: 8px;
+                            alignment: center;
+                            Button {
+                                text: "Verificar agora";
+                                enabled: !root.upd_busy;
+                                clicked => { root.check_updates(); }
+                            }
+                            Button {
+                                text: "Atualizar yt-dlp";
+                                enabled: !root.upd_busy;
+                                clicked => { root.run_update(1); }
+                            }
+                            Button {
+                                text: "Atualizar FFmpeg";
+                                enabled: !root.upd_busy;
+                                clicked => { root.run_update(2); }
+                            }
+                            AccentButton {
+                                text: "Atualizar ambos";
+                                enabled: !root.upd_busy;
+                                clicked => { root.run_update(3); }
+                            }
+                        }
+                    }
+
+                    // --- Progresso + resumo ---
+                    Card {
+                        vertical-stretch: 1;
+                        Text {
+                            text: "Progresso";
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: #c9cede;
+                        }
+                        ProgressIndicator {
+                            progress: root.upd_percent / 100;
+                        }
+                        Text {
+                            text: root.upd_msg;
+                            font-size: 12px;
+                            color: #9aa0b4;
+                            wrap: word-wrap;
+                            visible: root.upd_msg != "";
+                        }
+                        Text {
+                            text: root.upd_summary;
+                            font-size: 12px;
+                            color: #c9cede;
+                            wrap: word-wrap;
+                            visible: root.upd_summary != "";
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
